@@ -52,12 +52,12 @@ export default function ComposePage() {
 
   function validate(): FormErrors {
     const e: FormErrors = {};
-    if (!title.trim()) e.title = "Give your capsule a name so you can find it later";
-    if (!message.trim()) e.message = "Write something for your future self to read";
+    if (!title.trim()) e.title = "Your capsule needs a name — even a short one";
+    if (!message.trim()) e.message = "Say something to future you, even just a few words";
     if (!openDate) {
-      e.openDate = "Pick a date in the future when this capsule should open";
+      e.openDate = "Choose when this capsule should unlock";
     } else if (openDate < todayString()) {
-      e.openDate = "The open date needs to be in the future";
+      e.openDate = "That date has already passed — pick a day still ahead";
     }
     return e;
   }
@@ -123,8 +123,8 @@ export default function ComposePage() {
             </motion.div>
 
             <SectionHeader
-              title="SEALED!"
-              subtitle={`"${title}" has been sealed and will be ready to open on ${new Date(openDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.`}
+              title="SEALED SHUT"
+              subtitle={`"${title}" is locked away until ${new Date(openDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}. Future you has mail.`}
               size="md"
             />
 
@@ -134,7 +134,7 @@ export default function ComposePage() {
                 View Archive
               </RetroButton>
               <RetroButton onClick={resetForm}>
-                Create Another →
+                Write Another →
               </RetroButton>
             </div>
           </div>
@@ -159,8 +159,8 @@ export default function ComposePage() {
             </motion.div>
 
             <SectionHeader
-              title="DRAFT SAVED"
-              subtitle={`"${title || "Untitled Capsule"}" has been saved. You can continue editing it anytime from the archive.`}
+              title="SAVED FOR LATER"
+              subtitle={`"${title || "Untitled Capsule"}" is waiting in your archive. Come back whenever you're ready to finish it.`}
               size="md"
             />
 
@@ -168,14 +168,14 @@ export default function ComposePage() {
               <RetroButton variant="ghost" onClick={() => {
                 setSavedStatus(null);
               }}>
-                Keep Editing
+                Keep Writing
               </RetroButton>
               <RetroButton variant="secondary" onClick={() => navigate("/archive")}>
                 <Archive className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
                 View Archive
               </RetroButton>
               <RetroButton onClick={resetForm}>
-                Create New →
+                Start a New One →
               </RetroButton>
             </div>
           </div>
@@ -190,10 +190,10 @@ export default function ComposePage() {
       <RetroWindow title={editId ? "EDITING DRAFT" : "CAPSULE COMPOSER v1.0"} maxWidth="max-w-5xl">
         <div className="p-5 sm:p-10">
           <SectionHeader
-            title={editId ? "CONTINUE WRITING" : "CREATE A CAPSULE"}
+            title={editId ? "CONTINUE WRITING" : "NEW CAPSULE"}
             subtitle={editId
               ? "Pick up where you left off. Seal it when you're ready."
-              : "Write a message and send it as a private reveal experience."
+              : "Write something worth remembering. Your future self will thank you."
             }
             size="md"
           />
@@ -202,10 +202,10 @@ export default function ComposePage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left: Form inputs */}
             <div className="lg:col-span-2 space-y-6">
-              <FormField label="Message Title" error={errors.title} hint="Optional for drafts">
+              <FormField label="Title" error={errors.title} hint="Optional for drafts">
                 <input
                   type="text"
-                  placeholder="Give your capsule a title"
+                  placeholder="A name for this moment"
                   className="retro-input"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -215,7 +215,7 @@ export default function ComposePage() {
               <FormField label="Your Message" error={errors.message}>
                 <textarea
                   rows={7}
-                  placeholder="Write something meaningful..."
+                  placeholder="Dear future me..."
                   className="retro-input resize-none leading-relaxed"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -223,9 +223,9 @@ export default function ComposePage() {
               </FormField>
 
               <FormField
-                label="Open Date"
+                label="Unlock Date"
                 error={errors.openDate}
-                hint="Required to seal — optional for drafts"
+                hint="When should future you be able to open this?"
               >
                 <div className="relative">
                   <input
@@ -292,14 +292,14 @@ export default function ComposePage() {
             <div className="lg:col-span-1">
               <PaperPanel className="h-full min-h-[400px] flex flex-col items-center justify-center relative overflow-hidden">
                 <div className="text-sm font-bold text-black/70 uppercase tracking-widest mb-4">
-                  Preview
+                  Your Vessel
                 </div>
 
                 <VesselPreview vessel={selectedVessel} />
 
                 <div className="mt-6 text-center">
                   <p className="text-xs text-black/70 font-medium leading-relaxed">
-                    This is how your capsule will appear when sealed
+                    How your capsule will look while it waits
                   </p>
                 </div>
 
@@ -329,11 +329,11 @@ export default function ComposePage() {
             <div className="flex gap-3">
               <RetroButton variant="secondary" onClick={handleSaveDraft}>
                 <Save className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
-                Save Draft
+                Save for Later
               </RetroButton>
               <RetroButton onClick={handleSeal}>
                 <Sparkles className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
-                Seal Capsule
+                Seal This Capsule
               </RetroButton>
             </div>
           </div>

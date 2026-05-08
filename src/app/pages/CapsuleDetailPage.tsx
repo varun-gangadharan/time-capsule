@@ -17,7 +17,7 @@ export default function CapsuleDetailPage() {
   // Redirect drafts to compose
   useEffect(() => {
     if (capsule?.status === "draft") {
-      navigate(`/compose?id=${capsule.id}`, { replace: true });
+      navigate(`/compose/${capsule.id}`, { replace: true });
     }
   }, [capsule, navigate]);
 
@@ -28,8 +28,8 @@ export default function CapsuleDetailPage() {
         <RetroWindow title="NOT FOUND" maxWidth="max-w-2xl">
           <div className="px-6 py-10 sm:px-14 sm:py-16 text-center">
             <SectionHeader
-              title="CAPSULE NOT FOUND"
-              subtitle="This capsule doesn't exist or has been removed."
+              title="LOST IN TIME"
+              subtitle="This capsule doesn't seem to exist. It may have been removed, or the link is wrong."
               size="md"
             />
             <RetroButton onClick={() => navigate("/archive")}>
@@ -81,7 +81,7 @@ export default function CapsuleDetailPage() {
                 {capsule.title}
               </h2>
               <p className="text-sm text-black/50 font-medium">
-                This capsule unlocks on {formattedOpenDate}.
+                Still locked until {formattedOpenDate}.
               </p>
             </div>
 
@@ -90,12 +90,12 @@ export default function CapsuleDetailPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <MetadataRow
                   icon={<Calendar className="w-4 h-4" strokeWidth={2.5} />}
-                  label="Created"
+                  label="Sealed on"
                   value={formattedCreatedDate}
                 />
                 <MetadataRow
                   icon={<Clock className="w-4 h-4" strokeWidth={2.5} />}
-                  label="Unlocks"
+                  label="Unlocks on"
                   value={formattedOpenDate}
                 />
               </div>
@@ -134,7 +134,7 @@ export default function CapsuleDetailPage() {
             <div className="bg-black/[0.03] border-[2.5px] border-black/20 border-dashed rounded-xl p-6 sm:p-8 text-center mb-8">
               <Lock className="w-5 h-5 text-black/25 mx-auto mb-2" strokeWidth={2.5} />
               <p className="text-sm text-black/35 font-bold uppercase tracking-wide">
-                Message sealed until {formattedOpenDate}
+                Your words are safe in here
               </p>
             </div>
 
@@ -172,13 +172,13 @@ export default function CapsuleDetailPage() {
             </motion.div>
 
             <SectionHeader
-              title="YOUR CAPSULE IS READY"
+              title="IT'S TIME"
               subtitle={`"${capsule.title}" — sealed on ${formattedCreatedDate}`}
               size="md"
             />
 
             <p className="text-sm text-black/50 font-medium mb-8">
-              A message from your past self is waiting inside.
+              Past you left something in here. Ready to see what it was?
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -191,7 +191,7 @@ export default function CapsuleDetailPage() {
                 setRevealed(true);
               }}>
                 <Sparkles className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
-                Open Capsule
+                Open It
               </RetroButton>
             </div>
           </div>
@@ -285,10 +285,10 @@ export default function CapsuleDetailPage() {
           >
             <RetroButton variant="secondary" onClick={() => navigate("/archive")}>
               <ArrowLeft className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
-              Archive
+              Back to Archive
             </RetroButton>
             <RetroButton onClick={() => navigate("/compose")}>
-              Create Another →
+              Write Another →
             </RetroButton>
           </motion.div>
         </div>

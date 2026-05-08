@@ -117,13 +117,13 @@ export default function HomePage() {
 
           <SectionHeader
             title="MEMORY CAPSULE"
-            subtitle="Send a message that feels like unveiling something preserved and private — a unique experience instead of another email."
+            subtitle="Write something to your future self. Seal it away. Open it when the time comes."
             size="lg"
           />
 
           <div className="mb-8">
             <RetroButton onClick={() => navigate("/compose")}>
-              CREATE A CAPSULE →
+              Write a Capsule →
             </RetroButton>
           </div>
 
@@ -141,7 +141,7 @@ export default function HomePage() {
             />
             <StickerLabel
               icon={<Mail strokeWidth={2.5} />}
-              label="Future Self"
+              label="Letters to Future You"
               bgClass="bg-[#E0F7FF]/50"
             />
           </div>
@@ -153,7 +153,7 @@ export default function HomePage() {
               className="text-xs font-bold text-black/45 hover:text-black/70 transition-colors uppercase tracking-wider inline-flex items-center gap-1.5"
             >
               <Archive className="w-3.5 h-3.5" strokeWidth={2.5} />
-              View Archive
+              Open Archive
             </button>
           </div>
         </div>

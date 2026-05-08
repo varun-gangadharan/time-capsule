@@ -62,7 +62,7 @@ export default function CapsuleCard({ capsule, index }: { capsule: Capsule; inde
           </div>
 
           <p className="text-sm text-black/50 font-medium truncate mb-2">
-            {capsule.message || "No message yet..."}
+            {capsule.message || "A draft waiting to become something..."}
           </p>
 
           <div className="flex items-center gap-3 text-xs text-black/40 font-medium">
@@ -73,7 +73,7 @@ export default function CapsuleCard({ capsule, index }: { capsule: Capsule; inde
               <>
                 <span>·</span>
                 <span className="text-black/35 italic">
-                  Needs {draftMissing.join(", ")}
+                  Still needs {draftMissing.join(", ")}
                 </span>
               </>
             )}
@@ -133,7 +133,7 @@ export default function CapsuleCard({ capsule, index }: { capsule: Capsule; inde
         </div>
 
         <p className="text-sm text-black/60 font-medium truncate mb-2">
-          {isOpened ? capsule.message : "Message sealed"}
+          {isOpened ? capsule.message : "Sealed — contents hidden"}
         </p>
 
         <div className="flex items-center gap-4 text-xs text-black/45 font-medium">

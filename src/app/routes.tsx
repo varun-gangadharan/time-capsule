@@ -3,6 +3,7 @@ import HomePage from "./pages/HomePage";
 import ComposePage from "./pages/ComposePage";
 import ArchivePage from "./pages/ArchivePage";
 import CapsuleDetailPage from "./pages/CapsuleDetailPage";
+import SettingsPage from "./pages/SettingsPage";
 
 export const router = createBrowserRouter([
   {
@@ -24,5 +25,9 @@ export const router = createBrowserRouter([
   {
     path: "/capsules/:id",
     Component: CapsuleDetailPage,
+  },
+  {
+    path: "/settings",
+    Component: SettingsPage,
   },
 ]);

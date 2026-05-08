@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
+import { getSettings } from "../../../lib/capsules";
 
 export default function RetroPageBackground({
   children,
@@ -8,6 +9,9 @@ export default function RetroPageBackground({
   children: ReactNode;
   sparkleCount?: number;
 }) {
+  const theme = getSettings().theme;
+  const effectiveSparkles = theme === "calm" ? Math.max(0, Math.floor(sparkleCount / 3)) : sparkleCount;
+
   return (
     <div className="min-h-screen bg-retro-page flex items-center justify-center p-4 sm:p-8 overflow-hidden relative">
       {/* Paper grain noise texture */}
@@ -21,7 +25,7 @@ export default function RetroPageBackground({
 
       {/* Floating sparkle particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(sparkleCount)].map((_, i) => (
+        {[...Array(effectiveSparkles)].map((_, i) => (
           <motion.div
             key={i}
             className="absolute"
@@ -32,7 +36,7 @@ export default function RetroPageBackground({
             animate={{
               y: [0, -15, 0],
               x: [0, Math.random() * 8 - 4, 0],
-              opacity: [0, 0.35, 0],
+              opacity: [0, theme === "calm" ? 0.2 : 0.35, 0],
             }}
             transition={{
               duration: 5 + Math.random() * 2,
