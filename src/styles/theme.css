@@ -1,0 +1,79 @@
+/*
+ * Retro design tokens
+ * Extracted from Figma-transferred Home and Compose pages.
+ * Only values that repeat across components live here.
+ */
+
+:root {
+  /* Page & surface colors */
+  --retro-page-bg: #E8D5F2;
+  --retro-window-bg: #F5EBFF;
+  --retro-titlebar-from: #DCC7F0;
+  --retro-titlebar-to: #D5C9F5;
+
+  /* Accent palettes (from/to for gradients) */
+  --retro-mint-from: #88DED0;
+  --retro-mint-to: #6EC9BC;
+  --retro-green-from: #A8E6CF;
+  --retro-green-to: #7EC8B3;
+  --retro-pink-from: #FFB6D9;
+  --retro-pink-to: #FF9AC1;
+  --retro-yellow-from: #FFF9C4;
+  --retro-yellow-to: #FFE066;
+
+  /* Traffic-light dots */
+  --retro-dot-red: #FF6B6B;
+  --retro-dot-yellow: #FFE66D;
+  --retro-dot-green: #95E1D3;
+
+  /* Borders */
+  --retro-border: rgba(0, 0, 0, 0.9);
+  --retro-border-width: 3px;
+  --retro-border-width-sm: 2.5px;
+
+  /* Hard drop shadows */
+  --retro-shadow-window: 5px 5px 0px 0px rgba(0, 0, 0, 0.85);
+  --retro-shadow-button: 5px 5px 0px 0px rgba(0, 0, 0, 1);
+  --retro-shadow-selected: 3px 3px 0px 0px rgba(0, 0, 0, 1);
+  --retro-shadow-focus: 2px 2px 0px 0px rgba(0, 0, 0, 1);
+
+  /* Radii */
+  --retro-radius-window: 14px;
+  --retro-radius-button: 12px;
+  --retro-radius-input: 8px;
+
+  /* Text effects */
+  --retro-title-shadow: 1.5px 1.5px 0px #fff, 2.5px 2.5px 0px #000;
+
+  /* Noise texture (paper grain) */
+  --retro-noise-url: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Expose retro palette to Tailwind v4 */
+@theme inline {
+  --color-retro-page: var(--retro-page-bg);
+  --color-retro-window: var(--retro-window-bg);
+  --color-retro-titlebar-from: var(--retro-titlebar-from);
+  --color-retro-titlebar-to: var(--retro-titlebar-to);
+  --color-retro-mint-from: var(--retro-mint-from);
+  --color-retro-mint-to: var(--retro-mint-to);
+  --color-retro-green-from: var(--retro-green-from);
+  --color-retro-green-to: var(--retro-green-to);
+  --color-retro-pink-from: var(--retro-pink-from);
+  --color-retro-pink-to: var(--retro-pink-to);
+  --color-retro-yellow-from: var(--retro-yellow-from);
+  --color-retro-yellow-to: var(--retro-yellow-to);
+  --color-retro-dot-red: var(--retro-dot-red);
+  --color-retro-dot-yellow: var(--retro-dot-yellow);
+  --color-retro-dot-green: var(--retro-dot-green);
+}
+
+@layer base {
+  * {
+    @apply border-black/10 outline-black/20;
+  }
+
+  body {
+    @apply bg-retro-page text-black;
+  }
+}

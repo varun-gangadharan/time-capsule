@@ -1,0 +1,24 @@
+@import './tailwind.css';
+@import './theme.css';
+
+/* Retro form input — shared by text inputs, textareas, date pickers */
+@utility retro-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 2.5px solid rgba(0, 0, 0, 0.8);
+  border-radius: var(--retro-radius-input);
+  font-weight: 500;
+  color: black;
+  transition: all 0.15s;
+
+  &::placeholder {
+    color: rgba(0, 0, 0, 0.4);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: black;
+    box-shadow: var(--retro-shadow-focus);
+  }
+}
