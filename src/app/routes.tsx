@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router";
 import HomePage from "./pages/HomePage";
 import ComposePage from "./pages/ComposePage";
 import ArchivePage from "./pages/ArchivePage";
+import CapsuleDetailPage from "./pages/CapsuleDetailPage";
 
 export const router = createBrowserRouter([
   {
@@ -13,7 +14,15 @@ export const router = createBrowserRouter([
     Component: ComposePage,
   },
   {
+    path: "/compose/:id",
+    Component: ComposePage,
+  },
+  {
     path: "/archive",
     Component: ArchivePage,
+  },
+  {
+    path: "/capsules/:id",
+    Component: CapsuleDetailPage,
   },
 ]);

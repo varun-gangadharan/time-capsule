@@ -7,9 +7,9 @@ const variantClasses: Record<Variant, string> = {
   primary:
     "bg-gradient-to-b from-retro-mint-from to-retro-mint-to text-black font-black border-[3px] border-black rounded-[var(--retro-radius-button)] shadow-[var(--retro-shadow-button)] tracking-wide",
   secondary:
-    "bg-white/50 border-[2.5px] border-black/80 rounded-lg font-bold text-sm uppercase tracking-wide text-black hover:bg-white transition-all",
+    "bg-white/50 border-[2.5px] border-black/80 rounded-lg font-bold text-sm uppercase tracking-wide text-black hover:bg-white hover:shadow-[var(--retro-shadow-focus)] transition-all",
   ghost:
-    "bg-white/50 border-[2.5px] border-black/60 rounded-lg font-bold text-sm uppercase tracking-wide text-black/70 hover:bg-white hover:border-black/80 transition-all",
+    "bg-white/50 border-[2.5px] border-black/60 rounded-lg font-bold text-sm uppercase tracking-wide text-black/70 hover:bg-white/80 hover:border-black/80 hover:text-black transition-all",
 };
 
 const variantMotion: Record<
@@ -44,7 +44,7 @@ export default function RetroButton({
 
   return (
     <motion.button
-      className={`${variantClasses[variant]} ${sizeClass} ${className}`}
+      className={`whitespace-nowrap ${variantClasses[variant]} ${sizeClass} ${className}`}
       {...variantMotion[variant]}
       {...props}
     >

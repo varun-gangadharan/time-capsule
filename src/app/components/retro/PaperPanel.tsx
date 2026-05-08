@@ -9,7 +9,7 @@ export default function PaperPanel({
 }) {
   return (
     <div
-      className={`bg-gradient-to-br from-retro-page to-retro-titlebar-to border-[2.5px] border-black/80 rounded-lg p-6 ${className}`}
+      className={`bg-gradient-to-br from-retro-page to-retro-titlebar-to border-[2.5px] border-black/80 rounded-xl p-6 shadow-[inset_0_1px_3px_rgba(0,0,0,0.06)] ${className}`}
     >
       {children}
     </div>

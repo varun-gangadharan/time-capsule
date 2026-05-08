@@ -9,8 +9,8 @@ export default function SectionHeader({
 }) {
   const heading =
     size === "lg"
-      ? "text-5xl font-black text-black mb-4 tracking-tight leading-tight"
-      : "text-4xl font-black text-black mb-2 tracking-tight";
+      ? "text-3xl sm:text-5xl font-black text-black mb-3 sm:mb-4 tracking-tight leading-tight"
+      : "text-2xl sm:text-4xl font-black text-black mb-2 tracking-tight";
 
   return (
     <div className="text-center mb-8">
@@ -21,7 +21,7 @@ export default function SectionHeader({
         {title}
       </h1>
       {subtitle && (
-        <p className="text-sm text-black/70 font-medium max-w-md mx-auto leading-relaxed">
+        <p className="text-sm text-black/60 font-medium max-w-md mx-auto leading-relaxed">
           {subtitle}
         </p>
       )}

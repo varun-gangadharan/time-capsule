@@ -4,6 +4,7 @@ export type Capsule = {
   message: string;
   openDate: string;
   createdAt: string;
+  updatedAt: string;
   mood?: string;
   tags?: string[];
   prompt?: string;
@@ -33,6 +34,11 @@ export function saveCapsule(capsule: Capsule): void {
   } else {
     all.push(capsule);
   }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+}
+
+export function deleteCapsule(id: string): void {
+  const all = getAllCapsules().filter((c) => c.id !== id);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
 }
 

@@ -70,19 +70,19 @@ export default function VesselPreview({ vessel }: { vessel: VesselType }) {
       </div>
       <svg
         className="absolute inset-0 w-full h-full"
-        style={{ transform: "rotate(-90deg)" }}
       >
         {[...Array(5)].map((_, i) => {
           const angle1 = (i * 72) * (Math.PI / 180);
           const angle2 = ((i + 1) * 72) * (Math.PI / 180);
           const radius = 45;
+          const cx = 72, cy = 72; // center of 144x144 container
           return (
             <line
               key={i}
-              x1={`calc(50% + ${Math.cos(angle1) * radius}px)`}
-              y1={`calc(50% + ${Math.sin(angle1) * radius}px)`}
-              x2={`calc(50% + ${Math.cos(angle2) * radius}px)`}
-              y2={`calc(50% + ${Math.sin(angle2) * radius}px)`}
+              x1={cx + Math.cos(angle1) * radius}
+              y1={cy + Math.sin(angle1) * radius}
+              x2={cx + Math.cos(angle2) * radius}
+              y2={cy + Math.sin(angle2) * radius}
               stroke="black"
               strokeWidth="2"
               strokeDasharray="2,2"

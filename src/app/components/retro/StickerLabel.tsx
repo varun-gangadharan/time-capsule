@@ -11,7 +11,7 @@ export default function StickerLabel({
 }) {
   return (
     <div
-      className={`flex items-center gap-1.5 ${bgClass} border-2 border-black/50 px-3.5 py-1.5 rounded-full text-xs`}
+      className={`flex items-center gap-1.5 ${bgClass} border-2 border-black/50 px-3.5 py-1.5 rounded-full text-xs shadow-[1px_1px_0px_0px_rgba(0,0,0,0.15)]`}
     >
       <span className="text-black/70 [&>svg]:w-3.5 [&>svg]:h-3.5">{icon}</span>
       <span className="text-black/70 font-bold uppercase tracking-wide">

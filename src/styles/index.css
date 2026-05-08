@@ -5,7 +5,7 @@
 @utility retro-input {
   width: 100%;
   padding: 0.75rem 1rem;
-  background: white;
+  background: #FFFDF8;
   border: 2.5px solid rgba(0, 0, 0, 0.8);
   border-radius: var(--retro-radius-input);
   font-weight: 500;
@@ -13,12 +13,14 @@
   transition: all 0.15s;
 
   &::placeholder {
-    color: rgba(0, 0, 0, 0.4);
+    color: rgba(0, 0, 0, 0.35);
+    font-style: italic;
   }
 
   &:focus {
     outline: none;
     border-color: black;
     box-shadow: var(--retro-shadow-focus);
+    background: #FFFEF5;
   }
 }

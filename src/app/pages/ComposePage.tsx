@@ -1,11 +1,12 @@
 import { motion } from "motion/react";
 import { Sparkles, Mail, Calendar, Lock, Check, Archive, Save } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
 import RetroWindow from "../components/retro/RetroWindow";
 import RetroButton from "../components/retro/RetroButton";
 import SectionHeader from "../components/retro/SectionHeader";
+import FormField from "../components/retro/FormField";
 import PaperPanel from "../components/retro/PaperPanel";
 import VesselCard from "../components/compose/VesselCard";
 import VesselPreview from "../components/compose/VesselPreview";
@@ -20,8 +21,7 @@ type FormErrors = {
 
 export default function ComposePage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const editId = searchParams.get("id");
+  const { id: editId } = useParams<{ id: string }>();
 
   const [selectedVessel, setSelectedVessel] = useState<VesselType>("capsule");
   const [privacyMode, setPrivacyMode] = useState<"private" | "shareable">("private");
@@ -34,27 +34,30 @@ export default function ComposePage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [savedStatus, setSavedStatus] = useState<null | "draft" | "sealed">(null);
 
-  // Load existing draft when editing
+  // Load existing draft when editing — redirect sealed/opened to detail page
   useEffect(() => {
     if (editId) {
       const existing = getCapsule(editId);
-      if (existing) {
-        setCapsuleId(existing.id);
-        setTitle(existing.title);
-        setMessage(existing.message);
-        setOpenDate(existing.openDate || "");
+      if (!existing) return;
+      if (existing.status === "sealed" || existing.status === "opened") {
+        navigate(`/capsules/${editId}`, { replace: true });
+        return;
       }
+      setCapsuleId(existing.id);
+      setTitle(existing.title === "Untitled Capsule" ? "" : existing.title);
+      setMessage(existing.message);
+      setOpenDate(existing.openDate || "");
     }
-  }, [editId]);
+  }, [editId, navigate]);
 
   function validate(): FormErrors {
     const e: FormErrors = {};
-    if (!title.trim()) e.title = "Title is required";
-    if (!message.trim()) e.message = "Message is required";
+    if (!title.trim()) e.title = "Give your capsule a name so you can find it later";
+    if (!message.trim()) e.message = "Write something for your future self to read";
     if (!openDate) {
-      e.openDate = "Open date is required";
+      e.openDate = "Pick a date in the future when this capsule should open";
     } else if (openDate < todayString()) {
-      e.openDate = "Open date cannot be in the past";
+      e.openDate = "The open date needs to be in the future";
     }
     return e;
   }
@@ -64,12 +67,14 @@ export default function ComposePage() {
     setErrors(e);
     if (Object.keys(e).length > 0) return;
 
+    const now = new Date().toISOString();
     saveCapsule({
       id: capsuleId,
       title: title.trim(),
       message: message.trim(),
       openDate,
-      createdAt: new Date().toISOString(),
+      createdAt: editId ? (getCapsule(editId)?.createdAt || now) : now,
+      updatedAt: now,
       status: "sealed",
     });
     setSavedStatus("sealed");
@@ -77,12 +82,14 @@ export default function ComposePage() {
 
   function handleSaveDraft() {
     if (!title.trim() && !message.trim()) return;
+    const now = new Date().toISOString();
     saveCapsule({
       id: capsuleId,
-      title: title.trim() || "Untitled Draft",
+      title: title.trim() || "Untitled Capsule",
       message: message.trim(),
       openDate,
-      createdAt: new Date().toISOString(),
+      createdAt: editId ? (getCapsule(editId)?.createdAt || now) : now,
+      updatedAt: now,
       status: "draft",
     });
     setSavedStatus("draft");
@@ -96,21 +103,23 @@ export default function ComposePage() {
     setOpenDate("");
     setErrors({});
     setSavedStatus(null);
+    // Navigate to clean /compose without params
+    navigate("/compose", { replace: true });
   }
 
-  // --- Confirmation screen ---
+  // --- Confirmation: Sealed ---
   if (savedStatus === "sealed") {
     return (
       <RetroPageBackground sparkleCount={10}>
         <RetroWindow title="CAPSULE SEALED" maxWidth="max-w-2xl">
-          <div className="px-14 py-16 text-center">
+          <div className="px-6 py-10 sm:px-14 sm:py-16 text-center">
             <motion.div
-              className="mx-auto mb-8 w-24 h-24 bg-gradient-to-br from-retro-green-from to-retro-green-to border-[3px] border-black rounded-full flex items-center justify-center"
+              className="mx-auto mb-8 w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-retro-green-from to-retro-green-to border-[3px] border-black rounded-full flex items-center justify-center shadow-[var(--retro-shadow-selected)]"
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: "spring", duration: 0.8 }}
             >
-              <Check className="w-12 h-12 text-black" strokeWidth={3} />
+              <Check className="w-10 h-10 sm:w-12 sm:h-12 text-black" strokeWidth={3} />
             </motion.div>
 
             <SectionHeader
@@ -119,7 +128,7 @@ export default function ComposePage() {
               size="md"
             />
 
-            <div className="flex items-center justify-center gap-3 mt-6">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-6">
               <RetroButton variant="secondary" onClick={() => navigate("/archive")}>
                 <Archive className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
                 View Archive
@@ -134,27 +143,28 @@ export default function ComposePage() {
     );
   }
 
+  // --- Confirmation: Draft saved ---
   if (savedStatus === "draft") {
     return (
       <RetroPageBackground sparkleCount={6}>
         <RetroWindow title="DRAFT SAVED" maxWidth="max-w-2xl">
-          <div className="px-14 py-16 text-center">
+          <div className="px-6 py-10 sm:px-14 sm:py-16 text-center">
             <motion.div
-              className="mx-auto mb-8 w-24 h-24 bg-gradient-to-br from-retro-yellow-from to-retro-yellow-to border-[3px] border-black rounded-full flex items-center justify-center"
+              className="mx-auto mb-8 w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-retro-yellow-from to-retro-yellow-to border-[3px] border-black rounded-full flex items-center justify-center shadow-[var(--retro-shadow-selected)]"
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: "spring", duration: 0.8 }}
             >
-              <Save className="w-12 h-12 text-black" strokeWidth={2.5} />
+              <Save className="w-10 h-10 sm:w-12 sm:h-12 text-black" strokeWidth={2.5} />
             </motion.div>
 
             <SectionHeader
               title="DRAFT SAVED"
-              subtitle={`"${title || "Untitled Draft"}" has been saved. You can continue editing it anytime from the archive.`}
+              subtitle={`"${title || "Untitled Capsule"}" has been saved. You can continue editing it anytime from the archive.`}
               size="md"
             />
 
-            <div className="flex items-center justify-center gap-3 mt-6">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-6">
               <RetroButton variant="ghost" onClick={() => {
                 setSavedStatus(null);
               }}>
@@ -178,18 +188,21 @@ export default function ComposePage() {
   return (
     <RetroPageBackground sparkleCount={6}>
       <RetroWindow title={editId ? "EDITING DRAFT" : "CAPSULE COMPOSER v1.0"} maxWidth="max-w-5xl">
-        <div className="p-10">
+        <div className="p-5 sm:p-10">
           <SectionHeader
-            title={editId ? "EDIT DRAFT" : "CREATE A CAPSULE"}
-            subtitle="Write a message and send it as a private reveal experience."
+            title={editId ? "CONTINUE WRITING" : "CREATE A CAPSULE"}
+            subtitle={editId
+              ? "Pick up where you left off. Seal it when you're ready."
+              : "Write a message and send it as a private reveal experience."
+            }
             size="md"
           />
 
           {/* Two-column layout */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left: Form inputs */}
-            <div className="lg:col-span-2 space-y-5">
-              <FormField label="Message Title" error={errors.title}>
+            <div className="lg:col-span-2 space-y-6">
+              <FormField label="Message Title" error={errors.title} hint="Optional for drafts">
                 <input
                   type="text"
                   placeholder="Give your capsule a title"
@@ -201,9 +214,9 @@ export default function ComposePage() {
 
               <FormField label="Your Message" error={errors.message}>
                 <textarea
-                  rows={6}
+                  rows={7}
                   placeholder="Write something meaningful..."
-                  className="retro-input resize-none"
+                  className="retro-input resize-none leading-relaxed"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                 />
@@ -212,6 +225,7 @@ export default function ComposePage() {
               <FormField
                 label="Open Date"
                 error={errors.openDate}
+                hint="Required to seal — optional for drafts"
               >
                 <div className="relative">
                   <input
@@ -230,7 +244,7 @@ export default function ComposePage() {
 
               {/* Privacy Mode */}
               <div>
-                <label className="block text-sm font-bold text-black mb-3 uppercase tracking-wide">
+                <label className="block text-sm font-bold text-black mb-2.5 uppercase tracking-wide">
                   Privacy Mode
                 </label>
                 <div className="flex gap-3">
@@ -244,7 +258,7 @@ export default function ComposePage() {
                     }`}
                   >
                     <Lock className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
-                    Private
+                    <span className="whitespace-nowrap">Private</span>
                   </button>
                   <button
                     type="button"
@@ -256,17 +270,17 @@ export default function ComposePage() {
                     }`}
                   >
                     <Mail className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
-                    Shareable Link
+                    <span className="whitespace-nowrap">Share Link</span>
                   </button>
                 </div>
               </div>
 
               {/* Vessel selector */}
               <div>
-                <label className="block text-sm font-bold text-black mb-3 uppercase tracking-wide">
+                <label className="block text-sm font-bold text-black mb-2.5 uppercase tracking-wide">
                   Choose a Vessel
                 </label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <VesselCard type="capsule" selected={selectedVessel === "capsule"} onClick={() => setSelectedVessel("capsule")} />
                   <VesselCard type="envelope" selected={selectedVessel === "envelope"} onClick={() => setSelectedVessel("envelope")} />
                   <VesselCard type="constellation" selected={selectedVessel === "constellation"} onClick={() => setSelectedVessel("constellation")} />
@@ -277,7 +291,7 @@ export default function ComposePage() {
             {/* Right: Preview */}
             <div className="lg:col-span-1">
               <PaperPanel className="h-full min-h-[400px] flex flex-col items-center justify-center relative overflow-hidden">
-                <div className="text-xs font-bold text-black/60 uppercase tracking-wider mb-4">
+                <div className="text-sm font-bold text-black/70 uppercase tracking-widest mb-4">
                   Preview
                 </div>
 
@@ -307,52 +321,24 @@ export default function ComposePage() {
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center justify-between mt-8 pt-6 border-t-[2.5px] border-black/20">
-            <RetroButton variant="ghost" onClick={() => navigate("/")}>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mt-8 pt-6 border-t-[2.5px] border-black/15">
+            <RetroButton variant="ghost" onClick={() => navigate(editId ? "/archive" : "/")}>
               Cancel
             </RetroButton>
 
             <div className="flex gap-3">
               <RetroButton variant="secondary" onClick={handleSaveDraft}>
+                <Save className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
                 Save Draft
               </RetroButton>
-              <RetroButton variant="primary" className="px-8 py-3 text-base" onClick={handleSeal}>
-                Seal Capsule →
+              <RetroButton onClick={handleSeal}>
+                <Sparkles className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
+                Seal Capsule
               </RetroButton>
             </div>
           </div>
         </div>
       </RetroWindow>
     </RetroPageBackground>
-  );
-}
-
-/* ----- Local helper for form fields ----- */
-
-function FormField({
-  label,
-  optional,
-  hint,
-  error,
-  children,
-}: {
-  label: string;
-  optional?: boolean;
-  hint?: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className="block text-sm font-bold text-black mb-2 uppercase tracking-wide">
-        {label}
-        {optional && <span className="text-black/50 text-xs ml-1">(Optional)</span>}
-      </label>
-      {children}
-      {error && (
-        <p className="text-xs text-[#d4183d] mt-1 font-bold">{error}</p>
-      )}
-      {hint && !error && <p className="text-xs text-black/50 mt-1 font-medium">{hint}</p>}
-    </div>
   );
 }

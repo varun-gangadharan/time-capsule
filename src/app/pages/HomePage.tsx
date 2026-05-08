@@ -13,10 +13,10 @@ export default function HomePage() {
   return (
     <RetroPageBackground sparkleCount={8}>
       <RetroWindow title="SEALED MEMORY INTERFACE" maxWidth="max-w-2xl">
-        <div className="px-14 py-14 text-center">
+        <div className="px-6 py-8 sm:px-14 sm:py-14 text-center">
           {/* Hero capsule illustration */}
           <motion.div
-            className="mb-8 mx-auto w-56 h-56 relative"
+            className="mb-10 mx-auto w-40 h-40 sm:w-56 sm:h-56 relative"
             animate={{ y: [0, -12, 0] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
           >
@@ -121,38 +121,38 @@ export default function HomePage() {
             size="lg"
           />
 
-          <div className="mb-6">
+          <div className="mb-8">
             <RetroButton onClick={() => navigate("/compose")}>
               CREATE A CAPSULE →
             </RetroButton>
           </div>
 
           {/* Feature pills */}
-          <div className="flex items-center justify-center gap-3 flex-wrap">
-            <StickerLabel
-              icon={<Mail strokeWidth={2.5} />}
-              label="Email Delivery"
-              bgClass="bg-[#FFE8F5]/50"
-            />
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-2.5 flex-wrap">
             <StickerLabel
               icon={<Lock strokeWidth={2.5} />}
-              label="Secure Link"
-              bgClass="bg-[#FFF9E0]/50"
+              label="Private & Local"
+              bgClass="bg-[#FFE8F5]/50"
             />
             <StickerLabel
               icon={<Sparkles strokeWidth={2.5} />}
               label="Animated Reveal"
+              bgClass="bg-[#FFF9E0]/50"
+            />
+            <StickerLabel
+              icon={<Mail strokeWidth={2.5} />}
+              label="Future Self"
               bgClass="bg-[#E0F7FF]/50"
             />
           </div>
 
           {/* Archive link */}
-          <div className="mt-6">
+          <div className="mt-8 pt-6 border-t-[2px] border-black/10">
             <button
               onClick={() => navigate("/archive")}
-              className="text-sm font-bold text-black/50 hover:text-black/80 transition-colors uppercase tracking-wide"
+              className="text-xs font-bold text-black/45 hover:text-black/70 transition-colors uppercase tracking-wider inline-flex items-center gap-1.5"
             >
-              <Archive className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
+              <Archive className="w-3.5 h-3.5" strokeWidth={2.5} />
               View Archive
             </button>
           </div>

@@ -25,10 +25,10 @@ export default function RetroWindow({
             <div className="w-3.5 h-3.5 rounded-full bg-retro-dot-yellow border-[2.5px] border-black" />
             <div className="w-3.5 h-3.5 rounded-full bg-retro-dot-green border-[2.5px] border-black" />
           </div>
-          <div className="text-black font-bold text-xs tracking-[0.12em] uppercase">
+          <div className="text-black font-bold text-xs tracking-[0.12em] uppercase truncate min-w-0">
             {title}
           </div>
-          <div className="w-16" />
+          <div className="w-16 shrink-0" />
         </div>
 
         {children}
