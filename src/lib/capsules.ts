@@ -17,9 +17,10 @@ export type Capsule = {
 
 export type AppSettings = {
   theme: "calm" | "expressive";
+  emailNotifications: boolean;
 };
 
-const DEFAULT_SETTINGS: AppSettings = { theme: "expressive" };
+const DEFAULT_SETTINGS: AppSettings = { theme: "expressive", emailNotifications: true };
 
 // --- ID & date helpers (unchanged) ---
 
@@ -216,12 +217,15 @@ export async function getSettings(): Promise<AppSettings> {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("theme")
+    .select("theme, email_notifications")
     .eq("id", user.id)
     .maybeSingle();
 
   if (error || !data) return DEFAULT_SETTINGS;
-  return { theme: data.theme as AppSettings["theme"] };
+  return {
+    theme: data.theme as AppSettings["theme"],
+    emailNotifications: data.email_notifications ?? true,
+  };
 }
 
 export async function saveSettings(settings: AppSettings): Promise<void> {
@@ -230,7 +234,11 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
 
   const { error } = await supabase
     .from("profiles")
-    .update({ theme: settings.theme, updated_at: new Date().toISOString() })
+    .update({
+      theme: settings.theme,
+      email_notifications: settings.emailNotifications,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", user.id);
   if (error) throw new Error(error.message);
 }

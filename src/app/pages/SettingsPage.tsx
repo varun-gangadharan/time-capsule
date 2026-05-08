@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Download, Upload, Trash2, ArrowLeft, Sun, Zap, Info, Check, AlertTriangle, X, LogOut, Loader2 } from "lucide-react";
+import { Download, Upload, Trash2, ArrowLeft, Sun, Zap, Info, Check, AlertTriangle, X, LogOut, Loader2, Bell } from "lucide-react";
 import { useNavigate } from "react-router";
 import {
   getAllCapsules,
@@ -28,7 +28,7 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [settings, setSettingsState] = useState<AppSettings>({ theme: "expressive" });
+  const [settings, setSettingsState] = useState<AppSettings>({ theme: "expressive", emailNotifications: true });
   const [capsuleCount, setCapsuleCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -130,6 +130,17 @@ export default function SettingsPage() {
     }
   }
 
+  // --- Email notifications ---
+  async function handleNotificationToggle() {
+    const next = { ...settings, emailNotifications: !settings.emailNotifications };
+    setSettingsState(next);
+    try {
+      await saveSettings(next);
+    } catch {
+      setSettingsState(settings);
+    }
+  }
+
   // --- Sign out ---
   async function handleSignOut() {
     await signOut();
@@ -178,6 +189,51 @@ export default function SettingsPage() {
                 Sign Out
               </button>
             </div>
+          </SettingsSection>
+
+          {/* --- NOTIFICATIONS SECTION --- */}
+          <SettingsSection label="Notifications" icon={<Bell className="w-4 h-4" strokeWidth={2.5} />}>
+            <p className="text-xs text-black/45 font-medium mb-4">
+              Get an email when a sealed capsule is ready to open.
+            </p>
+            <motion.button
+              onClick={handleNotificationToggle}
+              className={`flex items-center gap-3 px-4 py-3 border-[2.5px] rounded-lg font-bold text-sm transition-all w-full text-left ${
+                settings.emailNotifications
+                  ? "bg-gradient-to-b from-retro-green-from to-retro-green-to border-black shadow-[var(--retro-shadow-selected)]"
+                  : "bg-white/40 border-black/50 hover:bg-white/70 hover:border-black/70"
+              }`}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+            >
+              <div className={`w-9 h-5 rounded-full border-[2px] relative transition-colors ${
+                settings.emailNotifications
+                  ? "bg-white/80 border-black"
+                  : "bg-black/10 border-black/40"
+              }`}>
+                <motion.div
+                  className={`absolute top-0.5 w-3 h-3 rounded-full border-[1.5px] ${
+                    settings.emailNotifications
+                      ? "bg-black border-black"
+                      : "bg-white border-black/40"
+                  }`}
+                  animate={{ left: settings.emailNotifications ? 16 : 2 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              </div>
+              <div>
+                <p className={`text-xs font-bold uppercase tracking-wide ${
+                  settings.emailNotifications ? "text-black" : "text-black/60"
+                }`}>
+                  Email reminders {settings.emailNotifications ? "on" : "off"}
+                </p>
+                <p className="text-[10px] font-medium text-black/40">
+                  {settings.emailNotifications
+                    ? "We'll notify you when a capsule unlocks"
+                    : "You won't receive any emails"}
+                </p>
+              </div>
+            </motion.button>
           </SettingsSection>
 
           {/* --- DATA SECTION --- */}

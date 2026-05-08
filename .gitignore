@@ -20,6 +20,9 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Supabase local
+supabase/.temp/
+
 # Playwright MCP
 .playwright-mcp/
 

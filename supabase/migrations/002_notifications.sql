@@ -39,6 +39,9 @@ alter table public.profiles
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
+-- NOTE: Replace <YOUR_ANON_KEY> with your project's anon key before running.
+-- The anon key is needed to pass the Supabase API gateway.
+-- The edge function uses SUPABASE_SERVICE_ROLE_KEY internally for DB operations.
 select cron.schedule(
   'enqueue-capsule-notifications',
   '0 8 * * *',  -- 8:00 AM UTC daily
@@ -54,12 +57,12 @@ select cron.schedule(
       and p.email_notifications = true
     on conflict (capsule_id, type) do nothing;
 
-    -- 2. Trigger the edge function to process the queue
+    -- 2. Trigger edge function (anon key for gateway auth)
     perform net.http_post(
-      url    := current_setting('app.settings.project_url') || '/functions/v1/send-notifications',
+      url    := 'https://wejlkmbrstncrjodznud.supabase.co/functions/v1/send-notifications',
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
-        'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key')
+        'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'anon_key' limit 1)
       ),
       body   := '{}'::jsonb
     );
