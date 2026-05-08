@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Mail, Lock, Sparkles } from "lucide-react";
+import { Mail, Lock, Sparkles, Archive } from "lucide-react";
 import { useNavigate } from "react-router";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
 import RetroWindow from "../components/retro/RetroWindow";
@@ -144,6 +144,17 @@ export default function HomePage() {
               label="Animated Reveal"
               bgClass="bg-[#E0F7FF]/50"
             />
+          </div>
+
+          {/* Archive link */}
+          <div className="mt-6">
+            <button
+              onClick={() => navigate("/archive")}
+              className="text-sm font-bold text-black/50 hover:text-black/80 transition-colors uppercase tracking-wide"
+            >
+              <Archive className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
+              View Archive
+            </button>
           </div>
         </div>
       </RetroWindow>

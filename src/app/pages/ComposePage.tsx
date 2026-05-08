@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Sparkles, Mail, Calendar, Lock } from "lucide-react";
+import { Sparkles, Mail, Calendar, Lock, Check, Archive } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
@@ -10,11 +10,108 @@ import PaperPanel from "../components/retro/PaperPanel";
 import VesselCard from "../components/compose/VesselCard";
 import VesselPreview from "../components/compose/VesselPreview";
 import type { VesselType } from "../components/compose/VesselCard";
+import { saveCapsule, generateId, todayString } from "../../lib/capsules";
+
+type FormErrors = {
+  title?: string;
+  message?: string;
+  openDate?: string;
+};
 
 export default function ComposePage() {
   const navigate = useNavigate();
   const [selectedVessel, setSelectedVessel] = useState<VesselType>("capsule");
   const [privacyMode, setPrivacyMode] = useState<"private" | "shareable">("private");
+
+  // Form state
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [openDate, setOpenDate] = useState("");
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [sealed, setSealed] = useState(false);
+
+  function validate(): FormErrors {
+    const e: FormErrors = {};
+    if (!title.trim()) e.title = "Title is required";
+    if (!message.trim()) e.message = "Message is required";
+    if (!openDate) {
+      e.openDate = "Open date is required";
+    } else if (openDate < todayString()) {
+      e.openDate = "Open date cannot be in the past";
+    }
+    return e;
+  }
+
+  function handleSeal() {
+    const e = validate();
+    setErrors(e);
+    if (Object.keys(e).length > 0) return;
+
+    saveCapsule({
+      id: generateId(),
+      title: title.trim(),
+      message: message.trim(),
+      openDate,
+      createdAt: new Date().toISOString(),
+      status: "sealed",
+    });
+    setSealed(true);
+  }
+
+  function handleSaveDraft() {
+    if (!title.trim() && !message.trim()) return;
+    saveCapsule({
+      id: generateId(),
+      title: title.trim() || "Untitled Draft",
+      message: message.trim(),
+      openDate,
+      createdAt: new Date().toISOString(),
+      status: "draft",
+    });
+    setSealed(true);
+  }
+
+  if (sealed) {
+    return (
+      <RetroPageBackground sparkleCount={10}>
+        <RetroWindow title="CAPSULE SEALED" maxWidth="max-w-2xl">
+          <div className="px-14 py-16 text-center">
+            {/* Sealed capsule animation */}
+            <motion.div
+              className="mx-auto mb-8 w-24 h-24 bg-gradient-to-br from-retro-green-from to-retro-green-to border-[3px] border-black rounded-full flex items-center justify-center"
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", duration: 0.8 }}
+            >
+              <Check className="w-12 h-12 text-black" strokeWidth={3} />
+            </motion.div>
+
+            <SectionHeader
+              title="SEALED!"
+              subtitle={`"${title}" has been sealed and will be ready to open on ${new Date(openDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.`}
+              size="md"
+            />
+
+            <div className="flex items-center justify-center gap-3 mt-6">
+              <RetroButton variant="secondary" onClick={() => navigate("/archive")}>
+                <Archive className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
+                View Archive
+              </RetroButton>
+              <RetroButton onClick={() => {
+                setSealed(false);
+                setTitle("");
+                setMessage("");
+                setOpenDate("");
+                setErrors({});
+              }}>
+                Create Another →
+              </RetroButton>
+            </div>
+          </div>
+        </RetroWindow>
+      </RetroPageBackground>
+    );
+  }
 
   return (
     <RetroPageBackground sparkleCount={6}>
@@ -30,45 +127,38 @@ export default function ComposePage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left: Form inputs */}
             <div className="lg:col-span-2 space-y-5">
-              <FormField label="To">
-                <input
-                  type="email"
-                  placeholder="recipient@email.com"
-                  className="retro-input"
-                />
-              </FormField>
-
-              <FormField label="From">
-                <input
-                  type="text"
-                  placeholder="Your name"
-                  className="retro-input"
-                />
-              </FormField>
-
-              <FormField label="Message Title">
+              <FormField label="Message Title" error={errors.title}>
                 <input
                   type="text"
                   placeholder="Give your capsule a title"
                   className="retro-input"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                 />
               </FormField>
 
-              <FormField label="Your Message">
+              <FormField label="Your Message" error={errors.message}>
                 <textarea
                   rows={6}
                   placeholder="Write something meaningful..."
                   className="retro-input resize-none"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
                 />
               </FormField>
 
               <FormField
-                label="Unlock Date"
-                optional
-                hint="Leave blank to send immediately"
+                label="Open Date"
+                error={errors.openDate}
               >
                 <div className="relative">
-                  <input type="date" className="retro-input" />
+                  <input
+                    type="date"
+                    className="retro-input"
+                    value={openDate}
+                    min={todayString()}
+                    onChange={(e) => setOpenDate(e.target.value)}
+                  />
                   <Calendar
                     className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-black/40 pointer-events-none"
                     strokeWidth={2.5}
@@ -83,6 +173,7 @@ export default function ComposePage() {
                 </label>
                 <div className="flex gap-3">
                   <button
+                    type="button"
                     onClick={() => setPrivacyMode("private")}
                     className={`flex-1 px-4 py-3 border-[2.5px] border-black/80 rounded-lg font-bold text-sm uppercase tracking-wide transition-all ${
                       privacyMode === "private"
@@ -94,6 +185,7 @@ export default function ComposePage() {
                     Private
                   </button>
                   <button
+                    type="button"
                     onClick={() => setPrivacyMode("shareable")}
                     className={`flex-1 px-4 py-3 border-[2.5px] border-black/80 rounded-lg font-bold text-sm uppercase tracking-wide transition-all ${
                       privacyMode === "shareable"
@@ -159,9 +251,11 @@ export default function ComposePage() {
             </RetroButton>
 
             <div className="flex gap-3">
-              <RetroButton variant="secondary">Save Draft</RetroButton>
-              <RetroButton variant="primary" className="px-8 py-3 text-base">
-                Preview Capsule →
+              <RetroButton variant="secondary" onClick={handleSaveDraft}>
+                Save Draft
+              </RetroButton>
+              <RetroButton variant="primary" className="px-8 py-3 text-base" onClick={handleSeal}>
+                Seal Capsule →
               </RetroButton>
             </div>
           </div>
@@ -177,11 +271,13 @@ function FormField({
   label,
   optional,
   hint,
+  error,
   children,
 }: {
   label: string;
   optional?: boolean;
   hint?: string;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -191,7 +287,10 @@ function FormField({
         {optional && <span className="text-black/50 text-xs ml-1">(Optional)</span>}
       </label>
       {children}
-      {hint && <p className="text-xs text-black/50 mt-1 font-medium">{hint}</p>}
+      {error && (
+        <p className="text-xs text-[#d4183d] mt-1 font-bold">{error}</p>
+      )}
+      {hint && !error && <p className="text-xs text-black/50 mt-1 font-medium">{hint}</p>}
     </div>
   );
 }
