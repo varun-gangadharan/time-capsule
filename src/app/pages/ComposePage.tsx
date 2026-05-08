@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
-import { Sparkles, Mail, Calendar, Lock, Check, Archive } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Sparkles, Mail, Calendar, Lock, Check, Archive, Save } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
 import RetroWindow from "../components/retro/RetroWindow";
 import RetroButton from "../components/retro/RetroButton";
@@ -10,7 +10,7 @@ import PaperPanel from "../components/retro/PaperPanel";
 import VesselCard from "../components/compose/VesselCard";
 import VesselPreview from "../components/compose/VesselPreview";
 import type { VesselType } from "../components/compose/VesselCard";
-import { saveCapsule, generateId, todayString } from "../../lib/capsules";
+import { saveCapsule, getCapsule, generateId, todayString } from "../../lib/capsules";
 
 type FormErrors = {
   title?: string;
@@ -20,15 +20,32 @@ type FormErrors = {
 
 export default function ComposePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get("id");
+
   const [selectedVessel, setSelectedVessel] = useState<VesselType>("capsule");
   const [privacyMode, setPrivacyMode] = useState<"private" | "shareable">("private");
 
   // Form state
+  const [capsuleId, setCapsuleId] = useState(() => editId || generateId());
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [openDate, setOpenDate] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
-  const [sealed, setSealed] = useState(false);
+  const [savedStatus, setSavedStatus] = useState<null | "draft" | "sealed">(null);
+
+  // Load existing draft when editing
+  useEffect(() => {
+    if (editId) {
+      const existing = getCapsule(editId);
+      if (existing) {
+        setCapsuleId(existing.id);
+        setTitle(existing.title);
+        setMessage(existing.message);
+        setOpenDate(existing.openDate || "");
+      }
+    }
+  }, [editId]);
 
   function validate(): FormErrors {
     const e: FormErrors = {};
@@ -48,35 +65,45 @@ export default function ComposePage() {
     if (Object.keys(e).length > 0) return;
 
     saveCapsule({
-      id: generateId(),
+      id: capsuleId,
       title: title.trim(),
       message: message.trim(),
       openDate,
       createdAt: new Date().toISOString(),
       status: "sealed",
     });
-    setSealed(true);
+    setSavedStatus("sealed");
   }
 
   function handleSaveDraft() {
     if (!title.trim() && !message.trim()) return;
     saveCapsule({
-      id: generateId(),
+      id: capsuleId,
       title: title.trim() || "Untitled Draft",
       message: message.trim(),
       openDate,
       createdAt: new Date().toISOString(),
       status: "draft",
     });
-    setSealed(true);
+    setSavedStatus("draft");
   }
 
-  if (sealed) {
+  function resetForm() {
+    const newId = generateId();
+    setCapsuleId(newId);
+    setTitle("");
+    setMessage("");
+    setOpenDate("");
+    setErrors({});
+    setSavedStatus(null);
+  }
+
+  // --- Confirmation screen ---
+  if (savedStatus === "sealed") {
     return (
       <RetroPageBackground sparkleCount={10}>
         <RetroWindow title="CAPSULE SEALED" maxWidth="max-w-2xl">
           <div className="px-14 py-16 text-center">
-            {/* Sealed capsule animation */}
             <motion.div
               className="mx-auto mb-8 w-24 h-24 bg-gradient-to-br from-retro-green-from to-retro-green-to border-[3px] border-black rounded-full flex items-center justify-center"
               initial={{ scale: 0, rotate: -180 }}
@@ -97,13 +124,7 @@ export default function ComposePage() {
                 <Archive className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
                 View Archive
               </RetroButton>
-              <RetroButton onClick={() => {
-                setSealed(false);
-                setTitle("");
-                setMessage("");
-                setOpenDate("");
-                setErrors({});
-              }}>
+              <RetroButton onClick={resetForm}>
                 Create Another →
               </RetroButton>
             </div>
@@ -113,12 +134,53 @@ export default function ComposePage() {
     );
   }
 
+  if (savedStatus === "draft") {
+    return (
+      <RetroPageBackground sparkleCount={6}>
+        <RetroWindow title="DRAFT SAVED" maxWidth="max-w-2xl">
+          <div className="px-14 py-16 text-center">
+            <motion.div
+              className="mx-auto mb-8 w-24 h-24 bg-gradient-to-br from-retro-yellow-from to-retro-yellow-to border-[3px] border-black rounded-full flex items-center justify-center"
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", duration: 0.8 }}
+            >
+              <Save className="w-12 h-12 text-black" strokeWidth={2.5} />
+            </motion.div>
+
+            <SectionHeader
+              title="DRAFT SAVED"
+              subtitle={`"${title || "Untitled Draft"}" has been saved. You can continue editing it anytime from the archive.`}
+              size="md"
+            />
+
+            <div className="flex items-center justify-center gap-3 mt-6">
+              <RetroButton variant="ghost" onClick={() => {
+                setSavedStatus(null);
+              }}>
+                Keep Editing
+              </RetroButton>
+              <RetroButton variant="secondary" onClick={() => navigate("/archive")}>
+                <Archive className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
+                View Archive
+              </RetroButton>
+              <RetroButton onClick={resetForm}>
+                Create New →
+              </RetroButton>
+            </div>
+          </div>
+        </RetroWindow>
+      </RetroPageBackground>
+    );
+  }
+
+  // --- Compose form ---
   return (
     <RetroPageBackground sparkleCount={6}>
-      <RetroWindow title="CAPSULE COMPOSER v1.0" maxWidth="max-w-5xl">
+      <RetroWindow title={editId ? "EDITING DRAFT" : "CAPSULE COMPOSER v1.0"} maxWidth="max-w-5xl">
         <div className="p-10">
           <SectionHeader
-            title="CREATE A CAPSULE"
+            title={editId ? "EDIT DRAFT" : "CREATE A CAPSULE"}
             subtitle="Write a message and send it as a private reveal experience."
             size="md"
           />

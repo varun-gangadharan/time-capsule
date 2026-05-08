@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Archive, Clock, Sparkles, Plus } from "lucide-react";
+import { Archive, Clock, Sparkles, Plus, Pencil } from "lucide-react";
 import { useNavigate } from "react-router";
 import { getAllCapsules, type Capsule } from "../../lib/capsules";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
@@ -95,10 +95,11 @@ function EmptyState() {
 }
 
 function CapsuleCard({ capsule, index }: { capsule: Capsule; index: number }) {
-  const openDate = new Date(capsule.openDate + "T00:00:00");
+  const navigate = useNavigate();
+  const openDate = capsule.openDate ? new Date(capsule.openDate + "T00:00:00") : null;
   const created = new Date(capsule.createdAt);
   const now = new Date();
-  const isReady = openDate <= now && capsule.status === "sealed";
+  const isReady = openDate ? openDate <= now && capsule.status === "sealed" : false;
   const isDraft = capsule.status === "draft";
 
   const statusConfig = isDraft
@@ -137,7 +138,7 @@ function CapsuleCard({ capsule, index }: { capsule: Capsule; index: number }) {
         </div>
 
         <p className="text-sm text-black/60 font-medium truncate mb-2">
-          {capsule.message}
+          {capsule.message || "No message yet"}
         </p>
 
         <div className="flex items-center gap-4 text-xs text-black/45 font-medium">
@@ -146,7 +147,9 @@ function CapsuleCard({ capsule, index }: { capsule: Capsule; index: number }) {
           </span>
           <span>·</span>
           <span>
-            {isDraft ? "No open date" : `Opens ${openDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
+            {!openDate
+              ? "No open date"
+              : `Opens ${openDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
           </span>
         </div>
 
@@ -169,6 +172,17 @@ function CapsuleCard({ capsule, index }: { capsule: Capsule; index: number }) {
           </span>
         )}
       </div>
+
+      {/* Edit button for drafts */}
+      {isDraft && (
+        <button
+          onClick={() => navigate(`/compose?id=${capsule.id}`)}
+          className="shrink-0 px-3 py-1.5 bg-white/60 border-[2px] border-black/50 rounded-lg font-bold text-xs uppercase tracking-wide text-black/60 hover:bg-white hover:border-black/80 transition-all flex items-center gap-1"
+        >
+          <Pencil className="w-3 h-3" strokeWidth={2.5} />
+          Edit
+        </button>
+      )}
     </motion.div>
   );
 }

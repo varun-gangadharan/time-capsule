@@ -21,6 +21,10 @@ export function getAllCapsules(): Capsule[] {
   }
 }
 
+export function getCapsule(id: string): Capsule | undefined {
+  return getAllCapsules().find((c) => c.id === id);
+}
+
 export function saveCapsule(capsule: Capsule): void {
   const all = getAllCapsules();
   const idx = all.findIndex((c) => c.id === capsule.id);
