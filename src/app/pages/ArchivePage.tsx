@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "motion/react";
-import { Plus, Search, SortDesc, FileText, Lock, Sparkles, Eye, Archive, X, Settings } from "lucide-react";
+import { Plus, Search, SortDesc, FileText, Lock, Sparkles, Eye, Archive, X, Settings, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { getAllCapsules, todayString } from "../../lib/capsules";
 import type { Capsule } from "../../lib/capsules";
@@ -37,7 +37,6 @@ function getEffectiveStatus(c: Capsule): "draft" | "sealed" | "ready" | "opened"
 function matchesSearch(capsule: Capsule, query: string): boolean {
   const q = query.toLowerCase();
   if (capsule.title.toLowerCase().includes(q)) return true;
-  // For sealed future capsules, don't search message body
   const effective = getEffectiveStatus(capsule);
   if (effective !== "sealed" && capsule.message.toLowerCase().includes(q)) return true;
   if (capsule.tags?.some((t) => t.toLowerCase().includes(q))) return true;
@@ -70,12 +69,20 @@ function sortCapsules(capsules: Capsule[], mode: SortMode): Capsule[] {
 
 export default function ArchivePage() {
   const navigate = useNavigate();
-  const allCapsules = getAllCapsules();
+  const [allCapsules, setAllCapsules] = useState<Capsule[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [filter, setFilter] = useState<FilterTab>("all");
   const [sort, setSort] = useState<SortMode>("updated");
   const [search, setSearch] = useState("");
   const [showSort, setShowSort] = useState(false);
+
+  useEffect(() => {
+    getAllCapsules()
+      .then(setAllCapsules)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   // Counts per tab
   const counts = useMemo(() => ({
@@ -99,6 +106,23 @@ export default function ArchivePage() {
     return sortCapsules(result, sort);
   }, [allCapsules, filter, sort, search]);
 
+  if (loading) {
+    return (
+      <RetroPageBackground sparkleCount={3}>
+        <RetroWindow title="MEMORY ARCHIVE v1.0" maxWidth="max-w-4xl">
+          <div className="p-10 flex items-center justify-center min-h-[300px]">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            >
+              <Loader2 className="w-8 h-8 text-black/30" strokeWidth={2.5} />
+            </motion.div>
+          </div>
+        </RetroWindow>
+      </RetroPageBackground>
+    );
+  }
+
   return (
     <RetroPageBackground sparkleCount={5}>
       <RetroWindow title="MEMORY ARCHIVE v1.0" maxWidth="max-w-4xl">
@@ -109,7 +133,7 @@ export default function ArchivePage() {
             size="md"
           />
 
-          {/* Filter tabs — file cabinet style */}
+          {/* Filter tabs */}
           <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
             {FILTER_TABS.map((tab) => (
               <button
@@ -136,7 +160,6 @@ export default function ArchivePage() {
 
           {/* Search & sort bar */}
           <div className="flex gap-2 mb-6 border-t-[2px] border-black/20 pt-4">
-            {/* Search */}
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black/35 pointer-events-none" strokeWidth={2.5} />
               <input
@@ -156,7 +179,6 @@ export default function ArchivePage() {
               )}
             </div>
 
-            {/* Sort toggle */}
             <div className="relative">
               <button
                 onClick={() => setShowSort(!showSort)}
@@ -166,7 +188,6 @@ export default function ArchivePage() {
                 <span className="hidden sm:inline">Sort</span>
               </button>
 
-              {/* Sort dropdown */}
               {showSort && (
                 <>
                   <div className="fixed inset-0 z-20" onClick={() => setShowSort(false)} />

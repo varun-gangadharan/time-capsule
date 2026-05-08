@@ -24,7 +24,13 @@ React + TypeScript + Vite app with Tailwind CSS v4 (using `@tailwindcss/vite` pl
 - `lucide-react` — icons
 - `class-variance-authority` + `clsx` + `tailwind-merge` — utility for conditional class merging via `cn()` in `src/app/components/ui/utils.ts`
 
-**Data persistence:** localStorage (no backend). MVP data model uses a `Capsule` type with id, title, message, openDate, createdAt, mood, tags, prompt, status fields.
+**Data persistence:** Supabase (Postgres + Auth + RLS). Data layer in `src/lib/capsules.ts` — all CRUD functions are async. Auth via `src/lib/auth.tsx` (AuthProvider + useAuth hook). MVP data model uses a `Capsule` type with id, title, message, openDate, createdAt, updatedAt, mood, tags, prompt, status, vessel fields. Sealed capsule messages are redacted via a `capsules_safe` Postgres view until the open date. Opening a capsule uses a server-side `open_capsule()` RPC function for date enforcement.
+
+**Auth:** Magic link (email OTP) + Google OAuth. Protected routes via `AuthLayout` wrapper in `src/app/layouts/AuthLayout.tsx`. Login page at `/login`.
+
+**Database:** Schema in `supabase/migrations/001_initial_schema.sql`. Tables: `profiles` (extends auth.users), `capsules` (main data). RLS enforces user isolation. The `capsules_safe` view redacts sealed message content.
+
+**Environment:** Requires `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env` (see `.env.example`).
 
 ## Design System
 

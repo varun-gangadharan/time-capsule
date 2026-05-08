@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Sparkles, Mail, Calendar, Lock, Check, Archive, Save } from "lucide-react";
+import { Sparkles, Mail, Calendar, Lock, Check, Archive, Save, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
@@ -31,23 +31,41 @@ export default function ComposePage() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [openDate, setOpenDate] = useState("");
+  const [existingCreatedAt, setExistingCreatedAt] = useState<string | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [savedStatus, setSavedStatus] = useState<null | "draft" | "sealed">(null);
+  const [saving, setSaving] = useState(false);
+  const [loadingDraft, setLoadingDraft] = useState(!!editId);
 
-  // Load existing draft when editing — redirect sealed/opened to detail page
+  // Load existing draft when editing
   useEffect(() => {
-    if (editId) {
-      const existing = getCapsule(editId);
-      if (!existing) return;
-      if (existing.status === "sealed" || existing.status === "opened") {
-        navigate(`/capsules/${editId}`, { replace: true });
-        return;
+    if (!editId) return;
+    let cancelled = false;
+
+    async function loadDraft() {
+      try {
+        const existing = await getCapsule(editId!);
+        if (cancelled) return;
+        if (!existing) {
+          setLoadingDraft(false);
+          return;
+        }
+        if (existing.status === "sealed" || existing.status === "opened") {
+          navigate(`/capsules/${editId}`, { replace: true });
+          return;
+        }
+        setCapsuleId(existing.id);
+        setTitle(existing.title === "Untitled Capsule" ? "" : existing.title);
+        setMessage(existing.message);
+        setOpenDate(existing.openDate || "");
+        setExistingCreatedAt(existing.createdAt);
+      } finally {
+        if (!cancelled) setLoadingDraft(false);
       }
-      setCapsuleId(existing.id);
-      setTitle(existing.title === "Untitled Capsule" ? "" : existing.title);
-      setMessage(existing.message);
-      setOpenDate(existing.openDate || "");
     }
+
+    loadDraft();
+    return () => { cancelled = true; };
   }, [editId, navigate]);
 
   function validate(): FormErrors {
@@ -62,37 +80,52 @@ export default function ComposePage() {
     return e;
   }
 
-  function handleSeal() {
+  async function handleSeal() {
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length > 0) return;
 
-    const now = new Date().toISOString();
-    saveCapsule({
-      id: capsuleId,
-      title: title.trim(),
-      message: message.trim(),
-      openDate,
-      createdAt: editId ? (getCapsule(editId)?.createdAt || now) : now,
-      updatedAt: now,
-      status: "sealed",
-    });
-    setSavedStatus("sealed");
+    setSaving(true);
+    try {
+      const now = new Date().toISOString();
+      await saveCapsule({
+        id: capsuleId,
+        title: title.trim(),
+        message: message.trim(),
+        openDate,
+        createdAt: existingCreatedAt || now,
+        updatedAt: now,
+        status: "sealed",
+      });
+      setSavedStatus("sealed");
+    } catch {
+      setErrors({ title: "Failed to save. Please try again." });
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleSaveDraft() {
+  async function handleSaveDraft() {
     if (!title.trim() && !message.trim()) return;
-    const now = new Date().toISOString();
-    saveCapsule({
-      id: capsuleId,
-      title: title.trim() || "Untitled Capsule",
-      message: message.trim(),
-      openDate,
-      createdAt: editId ? (getCapsule(editId)?.createdAt || now) : now,
-      updatedAt: now,
-      status: "draft",
-    });
-    setSavedStatus("draft");
+
+    setSaving(true);
+    try {
+      const now = new Date().toISOString();
+      await saveCapsule({
+        id: capsuleId,
+        title: title.trim() || "Untitled Capsule",
+        message: message.trim(),
+        openDate,
+        createdAt: existingCreatedAt || now,
+        updatedAt: now,
+        status: "draft",
+      });
+      setSavedStatus("draft");
+    } catch {
+      setErrors({ title: "Failed to save. Please try again." });
+    } finally {
+      setSaving(false);
+    }
   }
 
   function resetForm() {
@@ -101,10 +134,28 @@ export default function ComposePage() {
     setTitle("");
     setMessage("");
     setOpenDate("");
+    setExistingCreatedAt(null);
     setErrors({});
     setSavedStatus(null);
-    // Navigate to clean /compose without params
     navigate("/compose", { replace: true });
+  }
+
+  // --- Loading draft ---
+  if (loadingDraft) {
+    return (
+      <RetroPageBackground sparkleCount={4}>
+        <RetroWindow title="LOADING..." maxWidth="max-w-5xl">
+          <div className="p-10 flex items-center justify-center min-h-[300px]">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            >
+              <Loader2 className="w-8 h-8 text-black/30" strokeWidth={2.5} />
+            </motion.div>
+          </div>
+        </RetroWindow>
+      </RetroPageBackground>
+    );
   }
 
   // --- Confirmation: Sealed ---
@@ -328,11 +379,19 @@ export default function ComposePage() {
 
             <div className="flex gap-3">
               <RetroButton variant="secondary" onClick={handleSaveDraft}>
-                <Save className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
+                {saving ? (
+                  <Loader2 className="w-4 h-4 inline-block mr-1.5 mb-0.5 animate-spin" strokeWidth={2.5} />
+                ) : (
+                  <Save className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
+                )}
                 Save for Later
               </RetroButton>
               <RetroButton onClick={handleSeal}>
-                <Sparkles className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
+                {saving ? (
+                  <Loader2 className="w-4 h-4 inline-block mr-1.5 mb-0.5 animate-spin" strokeWidth={2.5} />
+                ) : (
+                  <Sparkles className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
+                )}
                 Seal This Capsule
               </RetroButton>
             </div>

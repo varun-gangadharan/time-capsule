@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Download, Upload, Trash2, ArrowLeft, Sun, Zap, Info, Check, AlertTriangle, X } from "lucide-react";
+import { Download, Upload, Trash2, ArrowLeft, Sun, Zap, Info, Check, AlertTriangle, X, LogOut, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import {
   getAllCapsules,
@@ -11,6 +11,7 @@ import {
   saveSettings,
 } from "../../lib/capsules";
 import type { AppSettings } from "../../lib/capsules";
+import { useAuth } from "../../lib/auth";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
 import RetroWindow from "../components/retro/RetroWindow";
 import RetroButton from "../components/retro/RetroButton";
@@ -23,12 +24,31 @@ type Toast = {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>(getSettings);
+  const [settings, setSettingsState] = useState<AppSettings>({ theme: "expressive" });
+  const [capsuleCount, setCapsuleCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const capsuleCount = getAllCapsules().length;
+  useEffect(() => {
+    async function load() {
+      try {
+        const [capsules, s] = await Promise.all([
+          getAllCapsules(),
+          getSettings(),
+        ]);
+        setCapsuleCount(capsules.length);
+        setSettingsState(s);
+      } catch {
+        // defaults are fine
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
 
   function showToast(t: Toast) {
     setToast(t);
@@ -36,16 +56,20 @@ export default function SettingsPage() {
   }
 
   // --- Export ---
-  function handleExport() {
-    const data = exportCapsules();
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `memory-capsule-backup-${new Date().toISOString().split("T")[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast({ type: "success", message: `Exported ${capsuleCount} capsule${capsuleCount !== 1 ? "s" : ""}` });
+  async function handleExport() {
+    try {
+      const data = await exportCapsules();
+      const blob = new Blob([data], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `memory-capsule-backup-${new Date().toISOString().split("T")[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast({ type: "success", message: `Exported ${capsuleCount} capsule${capsuleCount !== 1 ? "s" : ""}` });
+    } catch {
+      showToast({ type: "error", message: "Export failed" });
+    }
   }
 
   // --- Import ---
@@ -58,9 +82,9 @@ export default function SettingsPage() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
-        const result = importCapsules(ev.target?.result as string);
+        const result = await importCapsules(ev.target?.result as string);
         if (result.added === 0 && result.skipped > 0) {
           showToast({ type: "info", message: `All ${result.skipped} capsule${result.skipped !== 1 ? "s" : ""} already existed — nothing new to add` });
         } else if (result.added === 0) {
@@ -70,28 +94,63 @@ export default function SettingsPage() {
           if (result.skipped > 0) msg += `, ${result.skipped} already existed`;
           if (result.invalid > 0) msg += `, ${result.invalid} skipped (invalid)`;
           showToast({ type: "success", message: msg });
+          // Refresh count
+          const capsules = await getAllCapsules();
+          setCapsuleCount(capsules.length);
         }
       } catch {
         showToast({ type: "error", message: "That file doesn't look like a valid capsule backup" });
       }
     };
     reader.readAsText(file);
-    // Reset so the same file can be re-selected
     e.target.value = "";
   }
 
   // --- Clear all ---
-  function handleClear() {
-    clearAllCapsules();
-    setShowClearConfirm(false);
-    showToast({ type: "success", message: "All capsules have been removed" });
+  async function handleClear() {
+    try {
+      await clearAllCapsules();
+      setCapsuleCount(0);
+      setShowClearConfirm(false);
+      showToast({ type: "success", message: "All capsules have been removed" });
+    } catch {
+      showToast({ type: "error", message: "Failed to clear capsules" });
+    }
   }
 
   // --- Theme ---
-  function handleThemeChange(theme: AppSettings["theme"]) {
+  async function handleThemeChange(theme: AppSettings["theme"]) {
     const next = { ...settings, theme };
-    setSettings(next);
-    saveSettings(next);
+    setSettingsState(next);
+    try {
+      await saveSettings(next);
+    } catch {
+      // Revert on error
+      setSettingsState(settings);
+    }
+  }
+
+  // --- Sign out ---
+  async function handleSignOut() {
+    await signOut();
+    navigate("/login", { replace: true });
+  }
+
+  if (loading) {
+    return (
+      <RetroPageBackground sparkleCount={3}>
+        <RetroWindow title="CONTROL PANEL v1.0" maxWidth="max-w-2xl">
+          <div className="p-10 flex items-center justify-center min-h-[200px]">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            >
+              <Loader2 className="w-8 h-8 text-black/30" strokeWidth={2.5} />
+            </motion.div>
+          </div>
+        </RetroWindow>
+      </RetroPageBackground>
+    );
   }
 
   return (
@@ -104,12 +163,29 @@ export default function SettingsPage() {
             size="md"
           />
 
+          {/* --- ACCOUNT SECTION --- */}
+          <SettingsSection label="Account" icon={<LogOut className="w-4 h-4" strokeWidth={2.5} />}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-black/80">{user?.email}</p>
+                <p className="text-xs text-black/40 font-medium">Signed in</p>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="px-3 py-1.5 bg-white/50 border-[2px] border-black/40 rounded-lg text-xs font-bold uppercase tracking-wide text-black/50 hover:bg-white/80 hover:border-black/60 transition-all inline-flex items-center gap-1.5"
+              >
+                <LogOut className="w-3.5 h-3.5" strokeWidth={2.5} />
+                Sign Out
+              </button>
+            </div>
+          </SettingsSection>
+
           {/* --- DATA SECTION --- */}
           <SettingsSection label="Data" icon={<Download className="w-4 h-4" strokeWidth={2.5} />}>
             <p className="text-xs text-black/45 font-medium mb-4">
               {capsuleCount === 0
                 ? "No capsules stored yet."
-                : `${capsuleCount} capsule${capsuleCount !== 1 ? "s" : ""} stored locally on this device.`
+                : `${capsuleCount} capsule${capsuleCount !== 1 ? "s" : ""} stored in your account.`
               }
             </p>
 
@@ -137,7 +213,7 @@ export default function SettingsPage() {
               className="hidden"
             />
 
-            {/* Clear all — danger zone */}
+            {/* Clear all */}
             <div className="mt-5 pt-5 border-t border-dashed border-black/15">
               {!showClearConfirm ? (
                 <button
@@ -146,7 +222,7 @@ export default function SettingsPage() {
                   className="text-xs font-bold text-black/35 hover:text-[#d4183d] transition-colors uppercase tracking-wide inline-flex items-center gap-1.5 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <Trash2 className="w-3.5 h-3.5" strokeWidth={2.5} />
-                  Clear all local data
+                  Clear all capsule data
                 </button>
               ) : (
                 <motion.div
@@ -209,7 +285,7 @@ export default function SettingsPage() {
                 <span className="font-bold text-black/80">Memory Capsule</span> is a personal time capsule app. Write messages to your future self, seal them with a date, and open them when the time comes.
               </p>
               <p className="text-xs text-black/40">
-                MVP v0.1 — All data is stored locally in your browser.
+                v0.2 — Data synced securely via Supabase.
               </p>
             </div>
           </SettingsSection>

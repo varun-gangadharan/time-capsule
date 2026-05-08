@@ -1,8 +1,9 @@
 import { motion } from "motion/react";
-import { Sparkles, ArrowLeft, Calendar, Clock, Lock, Tag } from "lucide-react";
+import { Sparkles, ArrowLeft, Calendar, Clock, Lock, Tag, Loader2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import { useEffect, useState } from "react";
-import { getCapsule, saveCapsule, todayString } from "../../lib/capsules";
+import { getCapsule, openCapsule, todayString } from "../../lib/capsules";
+import type { Capsule } from "../../lib/capsules";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
 import RetroWindow from "../components/retro/RetroWindow";
 import RetroButton from "../components/retro/RetroButton";
@@ -11,15 +12,51 @@ import SectionHeader from "../components/retro/SectionHeader";
 export default function CapsuleDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const capsule = id ? getCapsule(id) : undefined;
+  const [capsule, setCapsule] = useState<Capsule | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState(false);
+  const [opening, setOpening] = useState(false);
 
-  // Redirect drafts to compose
   useEffect(() => {
-    if (capsule?.status === "draft") {
-      navigate(`/compose/${capsule.id}`, { replace: true });
+    if (!id) {
+      setLoading(false);
+      return;
     }
-  }, [capsule, navigate]);
+    let cancelled = false;
+
+    getCapsule(id)
+      .then((c) => {
+        if (cancelled) return;
+        setCapsule(c);
+        if (c?.status === "draft") {
+          navigate(`/compose/${c.id}`, { replace: true });
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [id, navigate]);
+
+  // Loading
+  if (loading) {
+    return (
+      <RetroPageBackground sparkleCount={4}>
+        <RetroWindow title="LOADING..." maxWidth="max-w-2xl">
+          <div className="p-10 flex items-center justify-center min-h-[300px]">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            >
+              <Loader2 className="w-8 h-8 text-black/30" strokeWidth={2.5} />
+            </motion.div>
+          </div>
+        </RetroWindow>
+      </RetroPageBackground>
+    );
+  }
 
   // Not found
   if (!capsule || capsule.status === "draft") {
@@ -41,12 +78,12 @@ export default function CapsuleDetailPage() {
     );
   }
 
-  const openDate = new Date(capsule.openDate + "T00:00:00");
+  const openDateObj = new Date(capsule.openDate + "T00:00:00");
   const createdDate = new Date(capsule.createdAt);
   const isReady = capsule.openDate <= todayString() && capsule.status === "sealed";
   const isOpened = capsule.status === "opened";
 
-  const formattedOpenDate = openDate.toLocaleDateString("en-US", {
+  const formattedOpenDate = openDateObj.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
@@ -56,6 +93,23 @@ export default function CapsuleDetailPage() {
     day: "numeric",
     year: "numeric",
   });
+
+  async function handleOpen() {
+    if (!capsule) return;
+    setOpening(true);
+    try {
+      await openCapsule(capsule.id);
+      // Re-fetch the capsule to get the full message
+      const updated = await getCapsule(capsule.id);
+      if (updated) {
+        setCapsule(updated);
+      }
+      setRevealed(true);
+    } catch {
+      // If server-side open fails, show error
+      setOpening(false);
+    }
+  }
 
   // --- STATE: Sealed & locked (future date) ---
   if (!isReady && !isOpened) {
@@ -70,7 +124,6 @@ export default function CapsuleDetailPage() {
                 animate={{ scale: [1, 1.02, 1] }}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
               >
-                {/* Scanline effect */}
                 <div className="absolute inset-0 opacity-[0.04]" style={{
                   backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, black 2px, black 3px)",
                 }} />
@@ -100,7 +153,6 @@ export default function CapsuleDetailPage() {
                 />
               </div>
 
-              {/* Tags */}
               {capsule.tags && capsule.tags.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-black/10">
                   <div className="flex items-center gap-1.5 mb-2">
@@ -120,7 +172,6 @@ export default function CapsuleDetailPage() {
                 </div>
               )}
 
-              {/* Mood */}
               {capsule.mood && (
                 <div className="mt-4 pt-4 border-t border-black/10">
                   <span className="px-2.5 py-1 bg-[#FFE8F5]/60 border border-black/20 rounded-full text-[11px] font-bold text-black/60 uppercase">
@@ -162,7 +213,6 @@ export default function CapsuleDetailPage() {
               animate={{ scale: [1, 1.04, 1], rotate: [0, 2, -2, 0] }}
               transition={{ duration: 2.5, repeat: Infinity }}
             >
-              {/* Pulsing glow */}
               <motion.div
                 className="absolute inset-0 bg-white/30 rounded-2xl"
                 animate={{ opacity: [0, 0.4, 0] }}
@@ -186,11 +236,12 @@ export default function CapsuleDetailPage() {
                 <ArrowLeft className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
                 Not Yet
               </RetroButton>
-              <RetroButton onClick={() => {
-                saveCapsule({ ...capsule, status: "opened" });
-                setRevealed(true);
-              }}>
-                <Sparkles className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
+              <RetroButton onClick={handleOpen}>
+                {opening ? (
+                  <Loader2 className="w-4 h-4 inline-block mr-1.5 mb-0.5 animate-spin" strokeWidth={2.5} />
+                ) : (
+                  <Sparkles className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
+                )}
                 Open It
               </RetroButton>
             </div>
@@ -256,7 +307,6 @@ export default function CapsuleDetailPage() {
               </span>
             </div>
 
-            {/* Tags & mood */}
             {((capsule.tags && capsule.tags.length > 0) || capsule.mood) && (
               <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3 pt-3 border-t border-black/10">
                 {capsule.tags?.map((tag) => (

@@ -1,3 +1,5 @@
+import { supabase } from "./supabase";
+
 export type Capsule = {
   id: string;
   title: string;
@@ -9,38 +11,17 @@ export type Capsule = {
   tags?: string[];
   prompt?: string;
   status: "draft" | "sealed" | "opened";
+  vessel?: string;
+  isReady?: boolean;
 };
 
-const STORAGE_KEY = "time-capsule:capsules";
+export type AppSettings = {
+  theme: "calm" | "expressive";
+};
 
-export function getAllCapsules(): Capsule[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
+const DEFAULT_SETTINGS: AppSettings = { theme: "expressive" };
 
-export function getCapsule(id: string): Capsule | undefined {
-  return getAllCapsules().find((c) => c.id === id);
-}
-
-export function saveCapsule(capsule: Capsule): void {
-  const all = getAllCapsules();
-  const idx = all.findIndex((c) => c.id === capsule.id);
-  if (idx >= 0) {
-    all[idx] = capsule;
-  } else {
-    all.push(capsule);
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-}
-
-export function deleteCapsule(id: string): void {
-  const all = getAllCapsules().filter((c) => c.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-}
+// --- ID & date helpers (unchanged) ---
 
 export function generateId(): string {
   return `cap_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -48,6 +29,98 @@ export function generateId(): string {
 
 export function todayString(): string {
   return new Date().toISOString().split("T")[0];
+}
+
+// --- Row mapping (snake_case DB → camelCase app) ---
+
+type DbCapsuleRow = {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  open_date: string | null;
+  created_at: string;
+  updated_at: string;
+  mood: string | null;
+  tags: string[] | null;
+  prompt: string | null;
+  status: "draft" | "sealed" | "opened";
+  vessel: string | null;
+  is_private: boolean;
+  is_ready?: boolean;
+};
+
+function rowToCapsule(row: DbCapsuleRow): Capsule {
+  return {
+    id: row.id,
+    title: row.title,
+    message: row.message,
+    openDate: row.open_date ?? "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    mood: row.mood ?? undefined,
+    tags: row.tags ?? undefined,
+    prompt: row.prompt ?? undefined,
+    status: row.status,
+    vessel: row.vessel ?? undefined,
+    isReady: row.is_ready ?? undefined,
+  };
+}
+
+// --- CRUD (async, Supabase-backed) ---
+
+export async function getAllCapsules(): Promise<Capsule[]> {
+  const { data, error } = await supabase
+    .from("capsules_safe")
+    .select("*")
+    .order("updated_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(rowToCapsule);
+}
+
+export async function getCapsule(id: string): Promise<Capsule | undefined> {
+  const { data, error } = await supabase
+    .from("capsules_safe")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data ? rowToCapsule(data) : undefined;
+}
+
+export async function saveCapsule(capsule: Capsule): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase.from("capsules").upsert({
+    id: capsule.id,
+    user_id: user.id,
+    title: capsule.title,
+    message: capsule.message,
+    open_date: capsule.openDate || null,
+    created_at: capsule.createdAt,
+    updated_at: capsule.updatedAt,
+    mood: capsule.mood || null,
+    tags: capsule.tags ?? [],
+    prompt: capsule.prompt || null,
+    status: capsule.status,
+    vessel: capsule.vessel || "capsule",
+    is_private: true,
+  });
+
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteCapsule(id: string): Promise<void> {
+  const { error } = await supabase.from("capsules").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function openCapsule(id: string): Promise<void> {
+  const { error } = await supabase.rpc("open_capsule", { capsule_id: id });
+  if (error) throw new Error(error.message);
 }
 
 // --- Backup & restore ---
@@ -68,13 +141,17 @@ function isValidCapsule(obj: unknown): obj is Capsule {
   );
 }
 
-export function exportCapsules(): string {
-  const capsules = getAllCapsules();
-  return JSON.stringify({
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    capsules,
-  }, null, 2);
+export async function exportCapsules(): Promise<string> {
+  const capsules = await getAllCapsules();
+  return JSON.stringify(
+    {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      capsules,
+    },
+    null,
+    2
+  );
 }
 
 export type ImportResult = {
@@ -83,7 +160,7 @@ export type ImportResult = {
   invalid: number;
 };
 
-export function importCapsules(json: string): ImportResult {
+export async function importCapsules(json: string): Promise<ImportResult> {
   const parsed = JSON.parse(json);
 
   let incoming: unknown[];
@@ -95,7 +172,7 @@ export function importCapsules(json: string): ImportResult {
     throw new Error("No capsules found in file");
   }
 
-  const existing = getAllCapsules();
+  const existing = await getAllCapsules();
   const existingIds = new Set(existing.map((c) => c.id));
   let added = 0;
   let skipped = 0;
@@ -110,43 +187,69 @@ export function importCapsules(json: string): ImportResult {
       skipped++;
       continue;
     }
-    // Ensure updatedAt exists
     if (!item.updatedAt) {
       item.updatedAt = item.createdAt;
     }
-    existing.push(item);
-    existingIds.add(item.id);
+    await saveCapsule(item);
     added++;
   }
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
   return { added, skipped, invalid };
 }
 
-export function clearAllCapsules(): void {
-  localStorage.removeItem(STORAGE_KEY);
+export async function clearAllCapsules(): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("capsules")
+    .delete()
+    .eq("user_id", user.id);
+  if (error) throw new Error(error.message);
 }
 
-// --- Settings persistence ---
+// --- Settings (stored in profiles table) ---
 
-const SETTINGS_KEY = "time-capsule:settings";
+export async function getSettings(): Promise<AppSettings> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return DEFAULT_SETTINGS;
 
-export type AppSettings = {
-  theme: "calm" | "expressive";
-};
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("theme")
+    .eq("id", user.id)
+    .maybeSingle();
 
-const DEFAULT_SETTINGS: AppSettings = { theme: "expressive" };
+  if (error || !data) return DEFAULT_SETTINGS;
+  return { theme: data.theme as AppSettings["theme"] };
+}
 
-export function getSettings(): AppSettings {
+export async function saveSettings(settings: AppSettings): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ theme: settings.theme, updated_at: new Date().toISOString() })
+    .eq("id", user.id);
+  if (error) throw new Error(error.message);
+}
+
+// --- localStorage helpers for migration ---
+
+const LOCAL_STORAGE_KEY = "time-capsule:capsules";
+const LOCAL_SETTINGS_KEY = "time-capsule:settings";
+
+export function getLocalCapsules(): Capsule[] {
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    return DEFAULT_SETTINGS;
+    return [];
   }
 }
 
-export function saveSettings(settings: AppSettings): void {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+export function clearLocalData(): void {
+  localStorage.removeItem(LOCAL_STORAGE_KEY);
+  localStorage.removeItem(LOCAL_SETTINGS_KEY);
 }
