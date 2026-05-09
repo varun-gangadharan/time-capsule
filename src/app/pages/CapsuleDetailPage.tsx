@@ -2,8 +2,9 @@ import { motion } from "motion/react";
 import { Sparkles, ArrowLeft, Calendar, Clock, Lock, Tag, Loader2, Mail, X, Send } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import { useEffect, useState } from "react";
-import { getCapsule, openCapsule, shareCapsuleWithEmail, revokeShare, todayString } from "../../lib/capsules";
+import { getCapsule, openCapsule, openSharedCapsule, shareCapsuleWithEmail, revokeShare, todayString } from "../../lib/capsules";
 import type { Capsule } from "../../lib/capsules";
+import { useAuth } from "../../lib/auth";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
 import RetroWindow from "../components/retro/RetroWindow";
 import RetroButton from "../components/retro/RetroButton";
@@ -12,6 +13,7 @@ import SectionHeader from "../components/retro/SectionHeader";
 export default function CapsuleDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [capsule, setCapsule] = useState<Capsule | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState(false);
@@ -131,7 +133,9 @@ export default function CapsuleDetailPage() {
   const createdDate = new Date(capsule.createdAt);
   const isReady = capsule.openDate <= todayString() && capsule.status === "sealed";
   const isOpened = capsule.status === "opened";
-  const isSent = !!capsule.sharedWithEmail;
+  const isShared = !!capsule.sharedWithEmail;
+  const isSent = isShared && capsule.userId === user?.id;
+  const isReceived = isShared && capsule.userId !== user?.id;
 
   const formattedOpenDate = openDateObj.toLocaleDateString("en-US", {
     month: "long",
@@ -148,7 +152,11 @@ export default function CapsuleDetailPage() {
     if (!capsule || isSent) return;
     setOpening(true);
     try {
-      await openCapsule(capsule.id);
+      if (isReceived && capsule.shareToken) {
+        await openSharedCapsule(capsule.shareToken);
+      } else {
+        await openCapsule(capsule.id);
+      }
       // Re-fetch the capsule to get the full message
       const updated = await getCapsule(capsule.id);
       if (updated) {
@@ -305,16 +313,17 @@ export default function CapsuleDetailPage() {
               </p>
             </div>
 
-            {/* Share section */}
-            <ShareSection
-              capsule={capsule}
-              sharingLoading={sharingLoading}
-              shareEmail={shareEmail}
-              shareMessage={shareMessage}
-              onEmailChange={setShareEmail}
-              onShare={handleShareWithEmail}
-              onRevoke={handleRevokeShare}
-            />
+            {!isReceived && (
+              <ShareSection
+                capsule={capsule}
+                sharingLoading={sharingLoading}
+                shareEmail={shareEmail}
+                shareMessage={shareMessage}
+                onEmailChange={setShareEmail}
+                onShare={handleShareWithEmail}
+                onRevoke={handleRevokeShare}
+              />
+            )}
 
             {/* Nav */}
             <div className="flex items-center justify-center">
@@ -459,15 +468,17 @@ export default function CapsuleDetailPage() {
             animate={{ opacity: 1 }}
             transition={{ delay: revealed ? 0.85 : 0 }}
           >
-            <ShareSection
-              capsule={capsule}
-              sharingLoading={sharingLoading}
-              shareEmail={shareEmail}
-              shareMessage={shareMessage}
-              onEmailChange={setShareEmail}
-              onShare={handleShareWithEmail}
-              onRevoke={handleRevokeShare}
-            />
+            {!isReceived && (
+              <ShareSection
+                capsule={capsule}
+                sharingLoading={sharingLoading}
+                shareEmail={shareEmail}
+                shareMessage={shareMessage}
+                onEmailChange={setShareEmail}
+                onShare={handleShareWithEmail}
+                onRevoke={handleRevokeShare}
+              />
+            )}
           </motion.div>
 
           {/* Actions */}

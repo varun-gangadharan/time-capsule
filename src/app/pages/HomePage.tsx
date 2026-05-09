@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Mail, Lock, Sparkles, Archive } from "lucide-react";
+import { Mail, Lock, Sparkles, Archive, Settings } from "lucide-react";
 import { useNavigate } from "react-router";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
 import RetroWindow from "../components/retro/RetroWindow";
@@ -13,7 +13,16 @@ export default function HomePage() {
   return (
     <RetroPageBackground sparkleCount={8}>
       <RetroWindow title="SEALED MEMORY INTERFACE" maxWidth="max-w-2xl">
-        <div className="px-6 py-8 sm:px-14 sm:py-14 text-center">
+        <div className="relative px-6 py-8 sm:px-14 sm:py-14 text-center">
+          <button
+            type="button"
+            onClick={() => navigate("/settings")}
+            className="absolute right-4 top-4 p-2 rounded-lg border-[2px] border-black/20 bg-white/25 text-black/30 transition-all hover:bg-white/55 hover:text-black/60 hover:border-black/35"
+            aria-label="Open settings"
+          >
+            <Settings className="w-4 h-4" strokeWidth={2.5} />
+          </button>
+
           {/* Hero capsule illustration */}
           <motion.div
             className="mb-10 mx-auto w-40 h-40 sm:w-56 sm:h-56 relative"

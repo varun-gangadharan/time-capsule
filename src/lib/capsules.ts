@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 
 export type Capsule = {
   id: string;
+  userId?: string;
   title: string;
   message: string;
   openDate: string;
@@ -61,6 +62,7 @@ type DbCapsuleRow = {
 function rowToCapsule(row: DbCapsuleRow): Capsule {
   return {
     id: row.id,
+    userId: row.user_id,
     title: row.title,
     message: row.message,
     openDate: row.open_date ?? "",

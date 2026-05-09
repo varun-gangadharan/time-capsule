@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import { Clock, Sparkles, Pencil, Eye, FileText, Mail, Trash2, Loader2, X, Check } from "lucide-react";
 import { useNavigate } from "react-router";
+import { useAuth } from "../../../lib/auth";
 import type { Capsule } from "../../../lib/capsules";
 import { todayString } from "../../../lib/capsules";
 
@@ -11,6 +12,7 @@ const STATUS_CONFIG = {
   sealed: { label: "SEALED", bg: "bg-gradient-to-r from-retro-green-from to-retro-green-to", text: "text-black" },
   opened: { label: "OPENED", bg: "bg-gradient-to-r from-retro-pink-from to-retro-pink-to", text: "text-black" },
   sent: { label: "SENT", bg: "bg-gradient-to-r from-retro-pink-from to-retro-pink-to", text: "text-black" },
+  received: { label: "RECEIVED", bg: "bg-gradient-to-r from-retro-yellow-from to-retro-yellow-to", text: "text-black" },
 } as const;
 
 export default function CapsuleCard({
@@ -23,15 +25,19 @@ export default function CapsuleCard({
   onDelete?: (capsule: Capsule) => Promise<void>;
 }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const openDate = capsule.openDate ? new Date(capsule.openDate + "T00:00:00") : null;
   const isDraft = capsule.status === "draft";
   const isOpened = capsule.status === "opened";
-  const isSent = !!capsule.sharedWithEmail;
+  const isShared = !!capsule.sharedWithEmail;
+  const isSent = isShared && capsule.userId === user?.id;
+  const isReceived = isShared && capsule.userId !== user?.id;
   const isReady = openDate ? capsule.openDate <= todayString() && capsule.status === "sealed" : false;
+  const canDelete = !isReceived;
 
-  const status = isDraft ? STATUS_CONFIG.draft : isSent ? STATUS_CONFIG.sent : isOpened ? STATUS_CONFIG.opened : isReady ? STATUS_CONFIG.ready : STATUS_CONFIG.sealed;
+  const status = isDraft ? STATUS_CONFIG.draft : isSent ? STATUS_CONFIG.sent : isOpened ? STATUS_CONFIG.opened : isReady ? STATUS_CONFIG.ready : isReceived ? STATUS_CONFIG.received : STATUS_CONFIG.sealed;
 
   // Completion hints for drafts
   const draftMissing: string[] = [];
@@ -122,6 +128,7 @@ export default function CapsuleCard({
             deleting={deleting}
             onDelete={handleDelete}
             onCancel={handleCancelDelete}
+            hidden={!canDelete}
           />
           <motion.div
             className="px-3 py-1.5 bg-white/80 border-[2px] border-black/50 rounded-lg font-bold text-xs uppercase tracking-wide text-black/60 flex items-center gap-1"
@@ -159,7 +166,7 @@ export default function CapsuleCard({
     >
       {/* Status icon */}
       <div className={`shrink-0 w-10 h-10 rounded-full border-[2px] border-black flex items-center justify-center ${iconBg}`}>
-        {isSent ? (
+        {isSent || isReceived ? (
           <Mail className="w-5 h-5 text-black" strokeWidth={2.5} />
         ) : isReady ? (
           <Sparkles className="w-5 h-5 text-black" strokeWidth={2.5} />
@@ -185,10 +192,26 @@ export default function CapsuleCard({
               Recipient
             </span>
           )}
+          {isReceived && (
+            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border border-black/20 bg-[#E8F0FF]/60 text-black/50 flex items-center gap-1">
+              <Mail className="w-3 h-3" strokeWidth={2.5} />
+              For You
+            </span>
+          )}
         </div>
 
         <p className="text-sm text-black/60 font-medium truncate mb-2">
-          {isSent ? `Sent to ${capsule.sharedWithEmail}` : isOpened ? capsule.message : "Sealed — contents hidden"}
+          {isSent
+            ? `Sent to ${capsule.sharedWithEmail}`
+            : isReceived
+              ? isOpened
+                ? capsule.message
+                : isReady
+                  ? "Ready to open"
+                  : "Shared with you"
+              : isOpened
+                ? capsule.message
+                : "Sealed — contents hidden"}
         </p>
 
         <div className="flex items-center gap-4 text-xs text-black/45 font-medium">
@@ -231,6 +254,7 @@ export default function CapsuleCard({
           deleting={deleting}
           onDelete={handleDelete}
           onCancel={handleCancelDelete}
+          hidden={!canDelete}
         />
         {isSent && (
           <motion.div
@@ -282,12 +306,16 @@ function DeleteButton({
   deleting,
   onDelete,
   onCancel,
+  hidden,
 }: {
   confirming: boolean;
   deleting: boolean;
   onDelete: (e: React.MouseEvent) => void;
   onCancel: (e: React.MouseEvent) => void;
+  hidden?: boolean;
 }) {
+  if (hidden) return null;
+
   if (confirming) {
     return (
       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
