@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Sparkles, Mail, Calendar, Lock, Check, Archive, Save, Loader2 } from "lucide-react";
+import { Sparkles, Mail, Calendar, Lock, Check, Archive, Save, Loader2, Send } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
@@ -11,12 +11,13 @@ import PaperPanel from "../components/retro/PaperPanel";
 import VesselCard from "../components/compose/VesselCard";
 import VesselPreview from "../components/compose/VesselPreview";
 import type { VesselType } from "../components/compose/VesselCard";
-import { saveCapsule, getCapsule, generateId, todayString } from "../../lib/capsules";
+import { saveCapsule, getCapsule, generateId, shareCapsuleWithEmail, todayString } from "../../lib/capsules";
 
 type FormErrors = {
   title?: string;
   message?: string;
   openDate?: string;
+  recipientEmail?: string;
 };
 
 export default function ComposePage() {
@@ -24,7 +25,7 @@ export default function ComposePage() {
   const { id: editId } = useParams<{ id: string }>();
 
   const [selectedVessel, setSelectedVessel] = useState<VesselType>("capsule");
-  const [privacyMode, setPrivacyMode] = useState<"private" | "shareable">("private");
+  const [privacyMode, setPrivacyMode] = useState<"private" | "shared">("private");
 
   // Form state
   const [capsuleId, setCapsuleId] = useState(() => editId || generateId());
@@ -36,6 +37,9 @@ export default function ComposePage() {
   const [savedStatus, setSavedStatus] = useState<null | "draft" | "sealed">(null);
   const [saving, setSaving] = useState(false);
   const [loadingDraft, setLoadingDraft] = useState(!!editId);
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [sentRecipientEmail, setSentRecipientEmail] = useState<string | null>(null);
+  const [shareInviteError, setShareInviteError] = useState<string | null>(null);
 
   // Load existing draft when editing
   useEffect(() => {
@@ -77,6 +81,9 @@ export default function ComposePage() {
     } else if (openDate < todayString()) {
       e.openDate = "That date has already passed — pick a day still ahead";
     }
+    if (privacyMode === "shared" && !recipientEmail.trim()) {
+      e.recipientEmail = "Enter the recipient's email";
+    }
     return e;
   }
 
@@ -88,6 +95,7 @@ export default function ComposePage() {
     setSaving(true);
     try {
       const now = new Date().toISOString();
+      const isShared = privacyMode === "shared";
       await saveCapsule({
         id: capsuleId,
         title: title.trim(),
@@ -96,10 +104,17 @@ export default function ComposePage() {
         createdAt: existingCreatedAt || now,
         updatedAt: now,
         status: "sealed",
+        isPrivate: true,
       });
+      if (isShared) {
+        const normalizedEmail = recipientEmail.trim().toLowerCase();
+        const result = await shareCapsuleWithEmail(capsuleId, normalizedEmail);
+        setSentRecipientEmail(normalizedEmail);
+        setShareInviteError(result.emailSent ? null : result.emailError ?? "Email invite failed.");
+      }
       setSavedStatus("sealed");
-    } catch {
-      setErrors({ title: "Failed to save. Please try again." });
+    } catch (err) {
+      setErrors({ title: err instanceof Error ? err.message : "Failed to save. Please try again." });
     } finally {
       setSaving(false);
     }
@@ -134,6 +149,9 @@ export default function ComposePage() {
     setTitle("");
     setMessage("");
     setOpenDate("");
+    setRecipientEmail("");
+    setSentRecipientEmail(null);
+    setShareInviteError(null);
     setExistingCreatedAt(null);
     setErrors({});
     setSavedStatus(null);
@@ -178,6 +196,22 @@ export default function ComposePage() {
               subtitle={`"${title}" is locked away until ${new Date(openDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}. Future you has mail.`}
               size="md"
             />
+
+            {sentRecipientEmail && (
+              <div className="mt-6 bg-white/40 border-[2.5px] border-black/30 border-dashed rounded-xl p-5 max-w-md mx-auto">
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <Mail className="w-4 h-4 text-black/50" strokeWidth={2.5} />
+                  <span className="text-xs font-bold text-black/60 uppercase tracking-wide">
+                    {shareInviteError ? "Access Granted" : "Invite Sent"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-black/40 font-medium text-center">
+                  {shareInviteError
+                    ? `Private access was granted to ${sentRecipientEmail}, but the invite email failed: ${shareInviteError}`
+                    : `${sentRecipientEmail} received a private invite and must verify that email before viewing.`}
+                </p>
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-6">
               <RetroButton variant="secondary" onClick={() => navigate("/archive")}>
@@ -313,18 +347,40 @@ export default function ComposePage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setPrivacyMode("shareable")}
+                    onClick={() => setPrivacyMode("shared")}
                     className={`flex-1 px-4 py-3 border-[2.5px] border-black/80 rounded-lg font-bold text-sm uppercase tracking-wide transition-all ${
-                      privacyMode === "shareable"
+                      privacyMode === "shared"
                         ? "bg-gradient-to-b from-retro-pink-from to-retro-pink-to shadow-[var(--retro-shadow-selected)]"
                         : "bg-white/50 hover:bg-white"
                     }`}
                   >
                     <Mail className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
-                    <span className="whitespace-nowrap">Share Link</span>
+                    <span className="whitespace-nowrap">Email Invite</span>
                   </button>
                 </div>
               </div>
+
+              {privacyMode === "shared" && (
+                <FormField
+                  label="Recipient Email"
+                  error={errors.recipientEmail}
+                  hint="Only this verified email can view the capsule"
+                >
+                  <div className="relative">
+                    <input
+                      type="email"
+                      placeholder="recipient@example.com"
+                      className="retro-input"
+                      value={recipientEmail}
+                      onChange={(e) => setRecipientEmail(e.target.value)}
+                    />
+                    <Send
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-black/40 pointer-events-none"
+                      strokeWidth={2.5}
+                    />
+                  </div>
+                </FormField>
+              )}
 
               {/* Vessel selector */}
               <div>

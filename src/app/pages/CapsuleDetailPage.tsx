@@ -1,8 +1,8 @@
 import { motion } from "motion/react";
-import { Sparkles, ArrowLeft, Calendar, Clock, Lock, Tag, Loader2 } from "lucide-react";
+import { Sparkles, ArrowLeft, Calendar, Clock, Lock, Tag, Loader2, Mail, X, Send } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import { useEffect, useState } from "react";
-import { getCapsule, openCapsule, todayString } from "../../lib/capsules";
+import { getCapsule, openCapsule, shareCapsuleWithEmail, revokeShare, todayString } from "../../lib/capsules";
 import type { Capsule } from "../../lib/capsules";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
 import RetroWindow from "../components/retro/RetroWindow";
@@ -16,6 +16,9 @@ export default function CapsuleDetailPage() {
   const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState(false);
   const [opening, setOpening] = useState(false);
+  const [sharingLoading, setSharingLoading] = useState(false);
+  const [shareEmail, setShareEmail] = useState("");
+  const [shareMessage, setShareMessage] = useState("");
 
   useEffect(() => {
     if (!id) {
@@ -78,10 +81,57 @@ export default function CapsuleDetailPage() {
     );
   }
 
+  async function handleShareWithEmail() {
+    if (!capsule) return;
+    if (!shareEmail.trim()) {
+      setShareMessage("Enter the recipient's email first.");
+      return;
+    }
+    setSharingLoading(true);
+    setShareMessage("");
+    try {
+      const recipientEmail = shareEmail.trim().toLowerCase();
+      const result = await shareCapsuleWithEmail(capsule.id, recipientEmail);
+      setCapsule({
+        ...capsule,
+        shareToken: result.token,
+        isPrivate: false,
+        sharedAt: new Date().toISOString(),
+        sharedWithEmail: recipientEmail,
+      });
+      setShareEmail("");
+      setShareMessage(
+        result.emailSent
+          ? `Invite sent to ${recipientEmail}.`
+          : `Access was granted to ${recipientEmail}, but the invite email failed: ${result.emailError}`
+      );
+    } catch (err) {
+      setShareMessage(err instanceof Error ? err.message : "Failed to share this capsule.");
+    } finally {
+      setSharingLoading(false);
+    }
+  }
+
+  async function handleRevokeShare() {
+    if (!capsule) return;
+    setSharingLoading(true);
+    setShareMessage("");
+    try {
+      await revokeShare(capsule.id);
+      setCapsule({ ...capsule, shareToken: undefined, isPrivate: true, sharedAt: undefined, sharedWithEmail: undefined });
+      setShareMessage("Sharing revoked.");
+    } catch (err) {
+      setShareMessage(err instanceof Error ? err.message : "Failed to revoke sharing.");
+    } finally {
+      setSharingLoading(false);
+    }
+  }
+
   const openDateObj = new Date(capsule.openDate + "T00:00:00");
   const createdDate = new Date(capsule.createdAt);
   const isReady = capsule.openDate <= todayString() && capsule.status === "sealed";
   const isOpened = capsule.status === "opened";
+  const isSent = !!capsule.sharedWithEmail;
 
   const formattedOpenDate = openDateObj.toLocaleDateString("en-US", {
     month: "long",
@@ -95,7 +145,7 @@ export default function CapsuleDetailPage() {
   });
 
   async function handleOpen() {
-    if (!capsule) return;
+    if (!capsule || isSent) return;
     setOpening(true);
     try {
       await openCapsule(capsule.id);
@@ -109,6 +159,72 @@ export default function CapsuleDetailPage() {
       // If server-side open fails, show error
       setOpening(false);
     }
+  }
+
+  if (isSent) {
+    return (
+      <RetroPageBackground sparkleCount={6}>
+        <RetroWindow title="SENT CAPSULE" maxWidth="max-w-2xl">
+          <div className="p-6 sm:p-10">
+            <div className="text-center mb-8">
+              <motion.div
+                className="mx-auto mb-6 w-24 h-24 sm:w-28 sm:h-28 bg-gradient-to-br from-retro-pink-from to-retro-pink-to border-[3px] border-black rounded-2xl flex items-center justify-center shadow-[var(--retro-shadow-selected)] relative overflow-hidden"
+                animate={{ scale: [1, 1.02, 1] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Mail className="w-10 h-10 sm:w-12 sm:h-12 text-black relative z-10" strokeWidth={2} />
+              </motion.div>
+
+              <h2 className="text-2xl sm:text-3xl font-black text-black tracking-tight mb-2">
+                {capsule.title}
+              </h2>
+              <p className="text-sm text-black/50 font-medium">
+                Sent to <span className="font-bold text-black/70">{capsule.sharedWithEmail}</span>.
+              </p>
+            </div>
+
+            <div className="bg-white/40 border-[2.5px] border-black/50 border-dashed rounded-xl p-5 sm:p-6 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <MetadataRow
+                  icon={<Calendar className="w-4 h-4" strokeWidth={2.5} />}
+                  label="Sealed on"
+                  value={formattedCreatedDate}
+                />
+                <MetadataRow
+                  icon={<Clock className="w-4 h-4" strokeWidth={2.5} />}
+                  label={isOpened ? "Recipient opened" : "Recipient can open"}
+                  value={formattedOpenDate}
+                />
+              </div>
+            </div>
+
+            <div className="bg-black/[0.03] border-[2.5px] border-black/20 border-dashed rounded-xl p-6 sm:p-8 text-center mb-8">
+              <Lock className="w-5 h-5 text-black/25 mx-auto mb-2" strokeWidth={2.5} />
+              <p className="text-sm text-black/35 font-bold uppercase tracking-wide">
+                Contents are only visible to the verified recipient
+              </p>
+            </div>
+
+            <ShareSection
+              capsule={capsule}
+              sharingLoading={sharingLoading}
+              shareEmail={shareEmail}
+              shareMessage={shareMessage}
+              onEmailChange={setShareEmail}
+              onShare={handleShareWithEmail}
+              onRevoke={handleRevokeShare}
+            />
+
+            <div className="flex items-center justify-center">
+              <RetroButton variant="secondary" onClick={() => navigate("/archive")}>
+                <ArrowLeft className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
+                Back to Archive
+              </RetroButton>
+            </div>
+          </div>
+        </RetroWindow>
+      </RetroPageBackground>
+    );
   }
 
   // --- STATE: Sealed & locked (future date) ---
@@ -188,6 +304,17 @@ export default function CapsuleDetailPage() {
                 Your words are safe in here
               </p>
             </div>
+
+            {/* Share section */}
+            <ShareSection
+              capsule={capsule}
+              sharingLoading={sharingLoading}
+              shareEmail={shareEmail}
+              shareMessage={shareMessage}
+              onEmailChange={setShareEmail}
+              onShare={handleShareWithEmail}
+              onRevoke={handleRevokeShare}
+            />
 
             {/* Nav */}
             <div className="flex items-center justify-center">
@@ -326,6 +453,23 @@ export default function CapsuleDetailPage() {
             )}
           </motion.div>
 
+          {/* Share section */}
+          <motion.div
+            initial={revealed ? { opacity: 0 } : false}
+            animate={{ opacity: 1 }}
+            transition={{ delay: revealed ? 0.85 : 0 }}
+          >
+            <ShareSection
+              capsule={capsule}
+              sharingLoading={sharingLoading}
+              shareEmail={shareEmail}
+              shareMessage={shareMessage}
+              onEmailChange={setShareEmail}
+              onShare={handleShareWithEmail}
+              onRevoke={handleRevokeShare}
+            />
+          </motion.div>
+
           {/* Actions */}
           <motion.div
             className="flex flex-col sm:flex-row items-center justify-center gap-3"
@@ -344,6 +488,91 @@ export default function CapsuleDetailPage() {
         </div>
       </RetroWindow>
     </RetroPageBackground>
+  );
+}
+
+function ShareSection({
+  capsule,
+  sharingLoading,
+  shareEmail,
+  shareMessage,
+  onEmailChange,
+  onShare,
+  onRevoke,
+}: {
+  capsule: Capsule;
+  sharingLoading: boolean;
+  shareEmail: string;
+  shareMessage: string;
+  onEmailChange: (email: string) => void;
+  onShare: () => void;
+  onRevoke: () => void;
+}) {
+  const isShared = !!capsule.shareToken;
+  const formattedOpenDate = new Date(capsule.openDate + "T00:00:00").toLocaleDateString("en-US", {
+    month: "long", day: "numeric", year: "numeric",
+  });
+
+  return (
+    <div className="bg-white/30 border-[2px] border-black/20 border-dashed rounded-xl p-5 mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <Mail className="w-4 h-4 text-black/50" strokeWidth={2.5} />
+        <span className="text-xs font-bold text-black/60 uppercase tracking-wide">Share</span>
+      </div>
+
+      {!isShared ? (
+        <div className="py-2">
+          <p className="text-sm text-black/50 font-medium mb-3">
+            Send this capsule to one recipient. They must verify this email before they can view it.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="email"
+              placeholder="recipient@example.com"
+              className="retro-input text-sm flex-1 !py-2 bg-white/60"
+              value={shareEmail}
+              onChange={(e) => onEmailChange(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && onShare()}
+            />
+            <RetroButton variant="ghost" onClick={onShare} disabled={sharingLoading}>
+              {sharingLoading ? (
+                <Loader2 className="w-4 h-4 inline-block mr-1.5 mb-0.5 animate-spin" strokeWidth={2.5} />
+              ) : (
+                <Send className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
+              )}
+              Send Invite
+            </RetroButton>
+          </div>
+          {shareMessage && (
+            <p className="text-[11px] text-black/45 font-medium mt-2">{shareMessage}</p>
+          )}
+        </div>
+      ) : (
+        <div>
+          <p className="text-sm text-black/55 font-medium mb-2">
+            Shared with <span className="font-bold text-black/75">{capsule.sharedWithEmail}</span>
+          </p>
+          <p className="text-[11px] text-black/40 font-medium mb-3">
+            Only that verified email can view this capsule after {formattedOpenDate}.
+          </p>
+          {shareMessage && (
+            <p className="text-[11px] text-black/45 font-medium mb-3">{shareMessage}</p>
+          )}
+
+          <button
+            onClick={onRevoke}
+            className="flex items-center gap-1.5 text-xs font-bold text-black/40 hover:text-black/60 uppercase tracking-wide transition-colors"
+          >
+            {sharingLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={2.5} />
+            ) : (
+              <X className="w-3.5 h-3.5" strokeWidth={2.5} />
+            )}
+            Revoke Access
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

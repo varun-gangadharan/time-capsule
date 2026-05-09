@@ -13,6 +13,10 @@ export type Capsule = {
   status: "draft" | "sealed" | "opened";
   vessel?: string;
   isReady?: boolean;
+  isPrivate?: boolean;
+  shareToken?: string;
+  sharedAt?: string;
+  sharedWithEmail?: string;
 };
 
 export type AppSettings = {
@@ -48,6 +52,9 @@ type DbCapsuleRow = {
   status: "draft" | "sealed" | "opened";
   vessel: string | null;
   is_private: boolean;
+  share_token: string | null;
+  shared_at: string | null;
+  shared_with_email: string | null;
   is_ready?: boolean;
 };
 
@@ -65,6 +72,10 @@ function rowToCapsule(row: DbCapsuleRow): Capsule {
     status: row.status,
     vessel: row.vessel ?? undefined,
     isReady: row.is_ready ?? undefined,
+    isPrivate: row.is_private,
+    shareToken: row.share_token ?? undefined,
+    sharedAt: row.shared_at ?? undefined,
+    sharedWithEmail: row.shared_with_email ?? undefined,
   };
 }
 
@@ -108,7 +119,7 @@ export async function saveCapsule(capsule: Capsule): Promise<void> {
     prompt: capsule.prompt || null,
     status: capsule.status,
     vessel: capsule.vessel || "capsule",
-    is_private: true,
+    is_private: capsule.isPrivate ?? true,
   });
 
   if (error) throw new Error(error.message);
@@ -121,6 +132,109 @@ export async function deleteCapsule(id: string): Promise<void> {
 
 export async function openCapsule(id: string): Promise<void> {
   const { error } = await supabase.rpc("open_capsule", { capsule_id: id });
+  if (error) throw new Error(error.message);
+}
+
+// --- Sharing ---
+
+export type ShareCapsuleResult = {
+  token: string;
+  emailSent: boolean;
+  emailError?: string;
+};
+
+export async function shareCapsuleWithEmail(capsuleId: string, email: string): Promise<ShareCapsuleResult> {
+  const token = crypto.randomUUID();
+  const recipientEmail = email.toLowerCase().trim();
+
+  const { error } = await supabase
+    .from("capsules")
+    .update({
+      share_token: token,
+      shared_at: new Date().toISOString(),
+      shared_with_email: recipientEmail,
+      is_private: false,
+    })
+    .eq("id", capsuleId);
+
+  if (error) throw new Error(error.message);
+
+  const { data: emailData, error: emailError } = await supabase.functions.invoke("send-share-invite", {
+    body: { capsuleId },
+  });
+
+  const emailSent = emailData?.sent === true && !emailError;
+
+  return {
+    token,
+    emailSent,
+    emailError: emailError ? await getFunctionErrorMessage(emailError) : emailData?.error,
+  };
+}
+
+async function getFunctionErrorMessage(error: unknown): Promise<string> {
+  const context = error && typeof error === "object" && "context" in error
+    ? (error as { context?: unknown }).context
+    : undefined;
+
+  if (context instanceof Response) {
+    try {
+      const body = await context.clone().json();
+      if (body && typeof body.error === "string") return body.error;
+    } catch {
+      try {
+        const text = await context.clone().text();
+        if (text) return text;
+      } catch {}
+    }
+  }
+
+  return error instanceof Error ? error.message : "Invite email failed.";
+}
+
+export async function revokeShare(capsuleId: string): Promise<void> {
+  const { error } = await supabase
+    .from("capsules")
+    .update({
+      share_token: null,
+      shared_at: null,
+      shared_with_email: null,
+      is_private: true,
+    })
+    .eq("id", capsuleId);
+
+  if (error) throw new Error(error.message);
+}
+
+export type ShareInfo = {
+  exists: boolean;
+  email_hint?: string;
+  title?: string;
+  status?: string;
+  is_ready?: boolean;
+  open_date?: string;
+};
+
+export async function getShareInfo(token: string): Promise<ShareInfo> {
+  const { data, error } = await supabase.rpc("get_share_info", { p_share_token: token });
+  if (error) throw new Error(error.message);
+  return data as ShareInfo;
+}
+
+export async function getCapsuleByToken(token: string): Promise<Capsule | undefined> {
+  const { data, error } = await supabase
+    .from("capsules_safe")
+    .select("*")
+    .eq("share_token", token)
+    .eq("is_private", false)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return data ? rowToCapsule(data) : undefined;
+}
+
+export async function openSharedCapsule(token: string): Promise<void> {
+  const { error } = await supabase.rpc("open_shared_capsule", { p_share_token: token });
   if (error) throw new Error(error.message);
 }
 

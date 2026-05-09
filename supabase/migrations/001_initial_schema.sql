@@ -83,7 +83,8 @@ create policy "Users can delete own capsules"
 -- ============================================
 -- SAFE VIEW (redacts sealed message content)
 -- ============================================
-create or replace view public.capsules_safe as
+create or replace view public.capsules_safe
+with (security_invoker = true) as
 select
   id, user_id, title,
   case

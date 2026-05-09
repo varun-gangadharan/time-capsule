@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Clock, Sparkles, Pencil, Eye, FileText } from "lucide-react";
+import { Clock, Sparkles, Pencil, Eye, FileText, Mail } from "lucide-react";
 import { useNavigate } from "react-router";
 import type { Capsule } from "../../../lib/capsules";
 import { todayString } from "../../../lib/capsules";
@@ -9,6 +9,7 @@ const STATUS_CONFIG = {
   ready: { label: "READY TO OPEN", bg: "bg-gradient-to-r from-retro-yellow-from to-retro-yellow-to", text: "text-black" },
   sealed: { label: "SEALED", bg: "bg-gradient-to-r from-retro-green-from to-retro-green-to", text: "text-black" },
   opened: { label: "OPENED", bg: "bg-gradient-to-r from-retro-pink-from to-retro-pink-to", text: "text-black" },
+  sent: { label: "SENT", bg: "bg-gradient-to-r from-retro-pink-from to-retro-pink-to", text: "text-black" },
 } as const;
 
 export default function CapsuleCard({ capsule, index }: { capsule: Capsule; index: number }) {
@@ -16,9 +17,10 @@ export default function CapsuleCard({ capsule, index }: { capsule: Capsule; inde
   const openDate = capsule.openDate ? new Date(capsule.openDate + "T00:00:00") : null;
   const isDraft = capsule.status === "draft";
   const isOpened = capsule.status === "opened";
+  const isSent = !!capsule.sharedWithEmail;
   const isReady = openDate ? capsule.openDate <= todayString() && capsule.status === "sealed" : false;
 
-  const status = isDraft ? STATUS_CONFIG.draft : isOpened ? STATUS_CONFIG.opened : isReady ? STATUS_CONFIG.ready : STATUS_CONFIG.sealed;
+  const status = isDraft ? STATUS_CONFIG.draft : isSent ? STATUS_CONFIG.sent : isOpened ? STATUS_CONFIG.opened : isReady ? STATUS_CONFIG.ready : STATUS_CONFIG.sealed;
 
   // Completion hints for drafts
   const draftMissing: string[] = [];
@@ -96,6 +98,8 @@ export default function CapsuleCard({ capsule, index }: { capsule: Capsule; inde
   // Sealed / Ready / Opened card
   const iconBg = isOpened
     ? "bg-gradient-to-br from-retro-pink-from to-retro-pink-to"
+    : isSent
+      ? "bg-gradient-to-br from-retro-pink-from to-retro-pink-to"
     : isReady
       ? "bg-gradient-to-br from-retro-yellow-from to-retro-yellow-to"
       : "bg-gradient-to-br from-retro-green-from to-retro-green-to";
@@ -112,7 +116,9 @@ export default function CapsuleCard({ capsule, index }: { capsule: Capsule; inde
     >
       {/* Status icon */}
       <div className={`shrink-0 w-10 h-10 rounded-full border-[2px] border-black flex items-center justify-center ${iconBg}`}>
-        {isReady ? (
+        {isSent ? (
+          <Mail className="w-5 h-5 text-black" strokeWidth={2.5} />
+        ) : isReady ? (
           <Sparkles className="w-5 h-5 text-black" strokeWidth={2.5} />
         ) : isOpened ? (
           <Eye className="w-5 h-5 text-black" strokeWidth={2.5} />
@@ -130,10 +136,16 @@ export default function CapsuleCard({ capsule, index }: { capsule: Capsule; inde
           <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border border-black/30 ${status.bg} ${status.text}`}>
             {status.label}
           </span>
+          {isSent && (
+            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border border-black/20 bg-[#E8F0FF]/60 text-black/50 flex items-center gap-1">
+              <Mail className="w-3 h-3" strokeWidth={2.5} />
+              Recipient
+            </span>
+          )}
         </div>
 
         <p className="text-sm text-black/60 font-medium truncate mb-2">
-          {isOpened ? capsule.message : "Sealed — contents hidden"}
+          {isSent ? `Sent to ${capsule.sharedWithEmail}` : isOpened ? capsule.message : "Sealed — contents hidden"}
         </p>
 
         <div className="flex items-center gap-4 text-xs text-black/45 font-medium">
@@ -171,7 +183,17 @@ export default function CapsuleCard({ capsule, index }: { capsule: Capsule; inde
       </div>
 
       {/* Action button */}
-      {isReady && (
+      {isSent && (
+        <motion.div
+          className="shrink-0 px-3 py-1.5 bg-white/60 border-[2px] border-black/50 rounded-lg font-bold text-xs uppercase tracking-wide text-black/60 flex items-center gap-1"
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+        >
+          <Mail className="w-3 h-3" strokeWidth={2.5} />
+          Sent
+        </motion.div>
+      )}
+      {!isSent && isReady && (
         <motion.div
           className="shrink-0 px-3 py-1.5 bg-gradient-to-b from-retro-yellow-from to-retro-yellow-to border-[2px] border-black/80 rounded-lg font-bold text-xs uppercase tracking-wide text-black flex items-center gap-1"
           whileHover={{ scale: 1.03 }}
@@ -181,7 +203,7 @@ export default function CapsuleCard({ capsule, index }: { capsule: Capsule; inde
           Open
         </motion.div>
       )}
-      {isOpened && (
+      {!isSent && isOpened && (
         <motion.div
           className="shrink-0 px-3 py-1.5 bg-white/60 border-[2px] border-black/50 rounded-lg font-bold text-xs uppercase tracking-wide text-black/60 flex items-center gap-1"
           whileHover={{ scale: 1.03 }}
@@ -191,7 +213,7 @@ export default function CapsuleCard({ capsule, index }: { capsule: Capsule; inde
           View
         </motion.div>
       )}
-      {!isReady && !isOpened && (
+      {!isSent && !isReady && !isOpened && (
         <motion.div
           className="shrink-0 px-3 py-1.5 bg-white/60 border-[2px] border-black/50 rounded-lg font-bold text-xs uppercase tracking-wide text-black/60 flex items-center gap-1"
           whileHover={{ scale: 1.03 }}
