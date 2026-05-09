@@ -12,8 +12,11 @@ type AuthContextType = {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUpWithPassword: (email: string, password: string) => Promise<{ error: Error | null; needsConfirmation: boolean }>;
   signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
+  updatePassword: (password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 };
 
@@ -54,6 +57,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? new Error(error.message) : null };
   }
 
+  async function signInWithPassword(email: string, password: string) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    return { error: error ? new Error(error.message) : null };
+  }
+
+  async function signUpWithPassword(email: string, password: string) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
+    });
+
+    return {
+      error: error ? new Error(error.message) : null,
+      needsConfirmation: !data.session,
+    };
+  }
+
   async function signInWithGoogle() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -61,6 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         redirectTo: window.location.origin,
       },
     });
+    return { error: error ? new Error(error.message) : null };
+  }
+
+  async function updatePassword(password: string) {
+    const { error } = await supabase.auth.updateUser({ password });
     return { error: error ? new Error(error.message) : null };
   }
 
@@ -74,8 +105,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         session,
         loading,
+        signInWithPassword,
+        signUpWithPassword,
         signInWithMagicLink,
         signInWithGoogle,
+        updatePassword,
         signOut,
       }}
     >

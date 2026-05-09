@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Download, Upload, Trash2, ArrowLeft, Sun, Zap, Info, Check, AlertTriangle, X, LogOut, Loader2, Bell } from "lucide-react";
+import { Download, Upload, Trash2, ArrowLeft, Sun, Zap, Info, Check, AlertTriangle, X, LogOut, Loader2, Bell, Lock } from "lucide-react";
 import { useNavigate } from "react-router";
 import {
   getAllCapsules,
@@ -24,10 +24,12 @@ type Toast = {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, signOut, updatePassword } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
   const [settings, setSettingsState] = useState<AppSettings>({ theme: "expressive", emailNotifications: true });
   const [capsuleCount, setCapsuleCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -147,6 +149,25 @@ export default function SettingsPage() {
     navigate("/login", { replace: true });
   }
 
+  async function handlePasswordUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      showToast({ type: "error", message: "Password must be at least 6 characters" });
+      return;
+    }
+
+    setSavingPassword(true);
+    const { error } = await updatePassword(newPassword);
+    setSavingPassword(false);
+
+    if (error) {
+      showToast({ type: "error", message: error.message });
+    } else {
+      setNewPassword("");
+      showToast({ type: "success", message: "Password updated" });
+    }
+  }
+
   if (loading) {
     return (
       <RetroPageBackground sparkleCount={3}>
@@ -176,7 +197,7 @@ export default function SettingsPage() {
 
           {/* --- ACCOUNT SECTION --- */}
           <SettingsSection label="Account" icon={<LogOut className="w-4 h-4" strokeWidth={2.5} />}>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-bold text-black/80">{user?.email}</p>
                 <p className="text-xs text-black/40 font-medium">Signed in</p>
@@ -189,6 +210,37 @@ export default function SettingsPage() {
                 Sign Out
               </button>
             </div>
+
+            <form onSubmit={handlePasswordUpdate} className="mt-5 pt-5 border-t border-dashed border-black/15">
+              <label className="block text-xs font-bold text-black/55 uppercase tracking-wide mb-2">
+                Set or update password
+              </label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  minLength={6}
+                  placeholder="At least 6 characters"
+                  className="retro-input !py-2.5 text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={savingPassword || newPassword.length < 6}
+                  className="px-4 py-2.5 bg-white/50 border-[2px] border-black/50 rounded-lg text-xs font-bold uppercase tracking-wide text-black/60 hover:bg-white/80 hover:border-black/70 transition-all disabled:opacity-30 disabled:cursor-not-allowed inline-flex items-center justify-center gap-1.5"
+                >
+                  {savingPassword ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={2.5} />
+                  ) : (
+                    <Lock className="w-3.5 h-3.5" strokeWidth={2.5} />
+                  )}
+                  Save Password
+                </button>
+              </div>
+              <p className="mt-2 text-[10px] font-medium text-black/35">
+                Use this after signing in once with a magic link or Google.
+              </p>
+            </form>
           </SettingsSection>
 
           {/* --- NOTIFICATIONS SECTION --- */}

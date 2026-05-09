@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "motion/react";
-import { Plus, Search, SortDesc, FileText, Lock, Sparkles, Eye, Archive, X, Settings, Loader2 } from "lucide-react";
+import { Plus, Search, SortDesc, FileText, Lock, Sparkles, Eye, Archive, X, Settings, Loader2, Trash2, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router";
-import { getAllCapsules, todayString } from "../../lib/capsules";
+import { clearAllCapsules, deleteCapsule, getAllCapsules, todayString } from "../../lib/capsules";
 import type { Capsule } from "../../lib/capsules";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
 import RetroWindow from "../components/retro/RetroWindow";
@@ -76,6 +76,9 @@ export default function ArchivePage() {
   const [sort, setSort] = useState<SortMode>("updated");
   const [search, setSearch] = useState("");
   const [showSort, setShowSort] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     getAllCapsules()
@@ -83,6 +86,30 @@ export default function ArchivePage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  async function handleDeleteCapsule(capsule: Capsule) {
+    setErrorMsg("");
+    try {
+      await deleteCapsule(capsule.id);
+      setAllCapsules((current) => current.filter((c) => c.id !== capsule.id));
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : "Failed to delete capsule");
+    }
+  }
+
+  async function handleClearAll() {
+    setClearing(true);
+    setErrorMsg("");
+    try {
+      await clearAllCapsules();
+      setAllCapsules([]);
+      setShowClearConfirm(false);
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : "Failed to clear archive");
+    } finally {
+      setClearing(false);
+    }
+  }
 
   // Counts per tab
   const counts = useMemo(() => ({
@@ -133,6 +160,17 @@ export default function ArchivePage() {
             size="md"
           />
 
+          {errorMsg && (
+            <motion.div
+              className="mt-4 mb-5 flex items-center gap-2 rounded-lg border-[2px] border-[#d4183d]/40 bg-[#FFF0F0] px-4 py-3 text-xs font-bold text-[#d4183d]"
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <AlertTriangle className="w-4 h-4 shrink-0" strokeWidth={2.5} />
+              {errorMsg}
+            </motion.div>
+          )}
+
           {/* Filter tabs */}
           <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
             {FILTER_TABS.map((tab) => (
@@ -179,6 +217,16 @@ export default function ArchivePage() {
               )}
             </div>
 
+            <button
+              type="button"
+              onClick={() => setShowClearConfirm(true)}
+              disabled={allCapsules.length === 0}
+              className="h-full px-3 bg-white/40 border-[2.5px] border-black/35 rounded-[var(--retro-radius-input)] font-bold text-xs uppercase tracking-wide text-black/35 hover:bg-[#FFF0F0] hover:text-[#d4183d] hover:border-[#d4183d]/50 transition-all flex items-center gap-1.5 whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <Trash2 className="w-4 h-4" strokeWidth={2.5} />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
+
             <div className="relative">
               <button
                 onClick={() => setShowSort(!showSort)}
@@ -211,6 +259,40 @@ export default function ArchivePage() {
             </div>
           </div>
 
+          {showClearConfirm && (
+            <motion.div
+              className="mb-6 bg-[#FFF0F0] border-[2px] border-[#d4183d]/40 rounded-lg p-4"
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <p className="text-sm font-bold text-[#d4183d]/80 mb-1">
+                Permanently delete the archive?
+              </p>
+              <p className="text-xs text-black/50 font-medium mb-3">
+                This will delete all {allCapsules.length} capsule{allCapsules.length !== 1 ? "s" : ""} in your account. This cannot be undone.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowClearConfirm(false)}
+                  disabled={clearing}
+                  className="px-3 py-1.5 bg-white border-[2px] border-black/40 rounded-lg text-xs font-bold uppercase tracking-wide text-black/60 hover:bg-white/80 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  disabled={clearing}
+                  className="px-3 py-1.5 bg-[#d4183d] border-[2px] border-[#a01030] rounded-lg text-xs font-bold uppercase tracking-wide text-white hover:bg-[#b8152f] transition-colors disabled:opacity-60 inline-flex items-center gap-1.5"
+                >
+                  {clearing && <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={2.5} />}
+                  Yes, delete all
+                </button>
+              </div>
+            </motion.div>
+          )}
+
           {/* Capsule list or empty state */}
           {allCapsules.length === 0 ? (
             <EmptyState type="all" />
@@ -223,7 +305,12 @@ export default function ArchivePage() {
           ) : (
             <div className="space-y-4">
               {filtered.map((capsule, i) => (
-                <CapsuleCard key={capsule.id} capsule={capsule} index={i} />
+                <CapsuleCard
+                  key={capsule.id}
+                  capsule={capsule}
+                  index={i}
+                  onDelete={handleDeleteCapsule}
+                />
               ))}
             </div>
           )}

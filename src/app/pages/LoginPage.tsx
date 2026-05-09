@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Mail, Sparkles, Check, Loader2 } from "lucide-react";
+import { Mail, Sparkles, Check, Loader2, Lock, UserPlus } from "lucide-react";
 import { Navigate } from "react-router";
 import { useAuth } from "../../lib/auth";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
@@ -9,13 +9,21 @@ import RetroButton from "../components/retro/RetroButton";
 import SectionHeader from "../components/retro/SectionHeader";
 
 export default function LoginPage() {
-  const { user, loading: authLoading } = useAuth();
+  const {
+    user,
+    loading: authLoading,
+    signInWithMagicLink,
+    signInWithGoogle,
+    signInWithPassword,
+    signUpWithPassword,
+  } = useAuth();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
     "idle"
   );
   const [errorMsg, setErrorMsg] = useState("");
-  const { signInWithMagicLink, signInWithGoogle } = useAuth();
 
   // Already logged in — redirect
   if (authLoading) {
@@ -51,6 +59,31 @@ export default function LoginPage() {
     } else {
       setStatus("sent");
     }
+  }
+
+  async function handlePasswordAuth(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim() || password.length < 6) return;
+
+    setStatus("sending");
+    setErrorMsg("");
+
+    const result = authMode === "signin"
+      ? await signInWithPassword(email.trim(), password)
+      : await signUpWithPassword(email.trim(), password);
+
+    if (result.error) {
+      setStatus("error");
+      setErrorMsg(result.error.message);
+      return;
+    }
+
+    if ("needsConfirmation" in result && result.needsConfirmation) {
+      setStatus("sent");
+      return;
+    }
+
+    setStatus("idle");
   }
 
   async function handleGoogle() {
@@ -126,8 +159,33 @@ export default function LoginPage() {
             size="md"
           />
 
-          {/* Magic link form */}
-          <form onSubmit={handleMagicLink} className="mt-6 space-y-4">
+          <div className="mt-6 grid grid-cols-2 gap-2 rounded-lg border-[2px] border-black/20 bg-white/30 p-1">
+            <button
+              type="button"
+              onClick={() => setAuthMode("signin")}
+              className={`rounded-md px-3 py-2 text-xs font-bold uppercase tracking-wide transition-all ${
+                authMode === "signin"
+                  ? "bg-white border-[2px] border-black/60 text-black shadow-[var(--retro-shadow-focus)]"
+                  : "text-black/45 hover:text-black/70"
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => setAuthMode("signup")}
+              className={`rounded-md px-3 py-2 text-xs font-bold uppercase tracking-wide transition-all ${
+                authMode === "signup"
+                  ? "bg-white border-[2px] border-black/60 text-black shadow-[var(--retro-shadow-focus)]"
+                  : "text-black/45 hover:text-black/70"
+              }`}
+            >
+              Create Account
+            </button>
+          </div>
+
+          {/* Password form */}
+          <form onSubmit={handlePasswordAuth} className="mt-5 space-y-4">
             <div>
               <label className="block text-sm font-bold text-black mb-2 uppercase tracking-wide">
                 Email
@@ -138,6 +196,21 @@ export default function LoginPage() {
                 className="retro-input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-black mb-2 uppercase tracking-wide">
+                Password
+              </label>
+              <input
+                type="password"
+                placeholder="At least 6 characters"
+                className="retro-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={6}
                 required
               />
             </div>
@@ -153,8 +226,9 @@ export default function LoginPage() {
             )}
 
             <RetroButton
-              onClick={() => {}}
-              // Using the form's onSubmit instead
+              type="submit"
+              disabled={status === "sending"}
+              className="w-full"
             >
               {status === "sending" ? (
                 <>
@@ -162,18 +236,40 @@ export default function LoginPage() {
                     className="w-4 h-4 inline-block mr-1.5 mb-0.5 animate-spin"
                     strokeWidth={2.5}
                   />
-                  Sending...
+                  Working...
                 </>
               ) : (
                 <>
-                  <Mail
-                    className="w-4 h-4 inline-block mr-1.5 mb-0.5"
-                    strokeWidth={2.5}
-                  />
-                  Send Magic Link
+                  {authMode === "signin" ? (
+                    <Lock
+                      className="w-4 h-4 inline-block mr-1.5 mb-0.5"
+                      strokeWidth={2.5}
+                    />
+                  ) : (
+                    <UserPlus
+                      className="w-4 h-4 inline-block mr-1.5 mb-0.5"
+                      strokeWidth={2.5}
+                    />
+                  )}
+                  {authMode === "signin" ? "Sign In" : "Create Account"}
                 </>
               )}
             </RetroButton>
+          </form>
+
+          {/* Magic link fallback */}
+          <form onSubmit={handleMagicLink} className="mt-3">
+            <button
+              type="submit"
+              disabled={!email.trim() || status === "sending"}
+              className="w-full px-4 py-2.5 bg-white/40 border-[2px] border-black/30 rounded-lg text-xs font-bold uppercase tracking-wide text-black/45 hover:bg-white/70 hover:text-black/70 hover:border-black/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed inline-flex items-center justify-center gap-1.5"
+            >
+              <Mail
+                    className="w-4 h-4 inline-block mr-1.5 mb-0.5"
+                    strokeWidth={2.5}
+                  />
+              Email me a magic link instead
+            </button>
           </form>
 
           {/* Divider */}
