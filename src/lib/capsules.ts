@@ -34,7 +34,8 @@ export function generateId(): string {
 }
 
 export function todayString(): string {
-  return new Date().toISOString().split("T")[0];
+  // Match server-side timezone (America/New_York) used in open_capsule RPC
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
 }
 
 // --- Row mapping (snake_case DB → camelCase app) ---

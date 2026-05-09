@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { Sparkles, Mail, Calendar, Lock, Check, Archive, Save, Loader2, Send } from "lucide-react";
-import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useParams, useBlocker } from "react-router";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
 import RetroWindow from "../components/retro/RetroWindow";
 import RetroButton from "../components/retro/RetroButton";
@@ -41,6 +41,24 @@ export default function ComposePage() {
   const [sentRecipientEmail, setSentRecipientEmail] = useState<string | null>(null);
   const [shareInviteError, setShareInviteError] = useState<string | null>(null);
 
+  // Unsaved changes detection
+  const hasUnsavedChanges = !savedStatus && !loadingDraft && (title.trim() !== "" || message.trim() !== "");
+
+  // Warn on browser close/reload
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasUnsavedChanges]);
+
+  // Warn on in-app navigation
+  const blocker = useBlocker(
+    useCallback(({ currentLocation, nextLocation }: { currentLocation: { pathname: string }; nextLocation: { pathname: string } }) =>
+      hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
+    [hasUnsavedChanges])
+  );
+
   // Load existing draft when editing
   useEffect(() => {
     if (!editId) return;
@@ -63,6 +81,7 @@ export default function ComposePage() {
         setMessage(existing.message);
         setOpenDate(existing.openDate || "");
         setExistingCreatedAt(existing.createdAt);
+        if (existing.vessel) setSelectedVessel(existing.vessel as VesselType);
       } finally {
         if (!cancelled) setLoadingDraft(false);
       }
@@ -104,6 +123,7 @@ export default function ComposePage() {
         createdAt: existingCreatedAt || now,
         updatedAt: now,
         status: "sealed",
+        vessel: selectedVessel,
         isPrivate: true,
       });
       if (isShared) {
@@ -134,6 +154,7 @@ export default function ComposePage() {
         createdAt: existingCreatedAt || now,
         updatedAt: now,
         status: "draft",
+        vessel: selectedVessel,
       });
       setSavedStatus("draft");
     } catch {
@@ -434,7 +455,7 @@ export default function ComposePage() {
             </RetroButton>
 
             <div className="flex gap-3">
-              <RetroButton variant="secondary" onClick={handleSaveDraft}>
+              <RetroButton variant="secondary" onClick={handleSaveDraft} disabled={saving}>
                 {saving ? (
                   <Loader2 className="w-4 h-4 inline-block mr-1.5 mb-0.5 animate-spin" strokeWidth={2.5} />
                 ) : (
@@ -442,7 +463,7 @@ export default function ComposePage() {
                 )}
                 Save for Later
               </RetroButton>
-              <RetroButton onClick={handleSeal}>
+              <RetroButton onClick={handleSeal} disabled={saving}>
                 {saving ? (
                   <Loader2 className="w-4 h-4 inline-block mr-1.5 mb-0.5 animate-spin" strokeWidth={2.5} />
                 ) : (
@@ -452,6 +473,38 @@ export default function ComposePage() {
               </RetroButton>
             </div>
           </div>
+
+          {/* Unsaved changes confirmation dialog */}
+          {blocker.state === "blocked" && (
+            <motion.div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              onClick={() => blocker.reset?.()}
+            >
+              <motion.div
+                className="bg-retro-window border-[3px] border-black rounded-xl shadow-[var(--retro-shadow-window)] p-6 max-w-sm mx-4"
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-lg font-black text-black uppercase tracking-wide mb-2">
+                  Unsaved Changes
+                </h3>
+                <p className="text-sm text-black/60 font-medium mb-5">
+                  You have unfinished writing that hasn't been saved. Leave anyway?
+                </p>
+                <div className="flex gap-2 justify-end">
+                  <RetroButton variant="secondary" onClick={() => blocker.reset?.()}>
+                    Keep Writing
+                  </RetroButton>
+                  <RetroButton variant="ghost" onClick={() => blocker.proceed?.()}>
+                    Leave
+                  </RetroButton>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
         </div>
       </RetroWindow>
     </RetroPageBackground>

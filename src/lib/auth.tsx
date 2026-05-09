@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { supabase } from "./supabase";
+import { appUrl } from "./app-url";
 import type { User, Session } from "@supabase/supabase-js";
 
 type AuthContextType = {
@@ -51,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: appUrl,
       },
     });
     return { error: error ? new Error(error.message) : null };
@@ -70,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: appUrl,
       },
     });
 
@@ -84,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: appUrl,
       },
     });
     return { error: error ? new Error(error.message) : null };

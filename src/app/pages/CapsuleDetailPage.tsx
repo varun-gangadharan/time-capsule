@@ -21,6 +21,7 @@ export default function CapsuleDetailPage() {
   const [sharingLoading, setSharingLoading] = useState(false);
   const [shareEmail, setShareEmail] = useState("");
   const [shareMessage, setShareMessage] = useState("");
+  const [openError, setOpenError] = useState("");
 
   useEffect(() => {
     if (!id) {
@@ -151,6 +152,7 @@ export default function CapsuleDetailPage() {
   async function handleOpen() {
     if (!capsule || isSent) return;
     setOpening(true);
+    setOpenError("");
     try {
       if (isReceived && capsule.shareToken) {
         await openSharedCapsule(capsule.shareToken);
@@ -163,8 +165,8 @@ export default function CapsuleDetailPage() {
         setCapsule(updated);
       }
       setRevealed(true);
-    } catch {
-      // If server-side open fails, show error
+    } catch (err) {
+      setOpenError(err instanceof Error ? err.message : "This capsule could not be opened yet. Please try again later.");
       setOpening(false);
     }
   }
@@ -201,7 +203,9 @@ export default function CapsuleDetailPage() {
                 <MetadataRow
                   icon={<Clock className="w-4 h-4" strokeWidth={2.5} />}
                   label={isOpened ? "Recipient opened" : "Recipient can open"}
-                  value={formattedOpenDate}
+                  value={isOpened
+                    ? new Date(capsule.updatedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+                    : formattedOpenDate}
                 />
               </div>
             </div>
@@ -372,7 +376,7 @@ export default function CapsuleDetailPage() {
                 <ArrowLeft className="w-4 h-4 inline-block mr-1.5 mb-0.5" strokeWidth={2.5} />
                 Not Yet
               </RetroButton>
-              <RetroButton onClick={handleOpen}>
+              <RetroButton onClick={handleOpen} disabled={opening}>
                 {opening ? (
                   <Loader2 className="w-4 h-4 inline-block mr-1.5 mb-0.5 animate-spin" strokeWidth={2.5} />
                 ) : (
@@ -381,6 +385,15 @@ export default function CapsuleDetailPage() {
                 Open It
               </RetroButton>
             </div>
+            {openError && (
+              <motion.p
+                className="text-xs text-[#d4183d] font-bold mt-4 text-center"
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                {openError}
+              </motion.p>
+            )}
           </div>
         </RetroWindow>
       </RetroPageBackground>
@@ -439,7 +452,7 @@ export default function CapsuleDetailPage() {
               <span className="text-black/20">·</span>
               <span className="flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5" strokeWidth={2.5} />
-                Opened {formattedOpenDate}
+                Opened {new Date(capsule.updatedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
               </span>
             </div>
 

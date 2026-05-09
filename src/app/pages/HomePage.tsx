@@ -1,14 +1,28 @@
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Mail, Lock, Sparkles, Archive, Settings } from "lucide-react";
+import { Mail, Lock, Sparkles, Archive, Settings, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
 import RetroWindow from "../components/retro/RetroWindow";
 import RetroButton from "../components/retro/RetroButton";
 import StickerLabel from "../components/retro/StickerLabel";
 import SectionHeader from "../components/retro/SectionHeader";
+import { useAuth } from "../../lib/auth";
+import { getAllCapsules } from "../../lib/capsules";
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [receivedCount, setReceivedCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    getAllCapsules()
+      .then((capsules) => {
+        setReceivedCount(capsules.filter((c) => c.userId !== user.id).length);
+      })
+      .catch(() => {});
+  }, [user]);
 
   return (
     <RetroPageBackground sparkleCount={8}>
@@ -130,6 +144,23 @@ export default function HomePage() {
             size="lg"
           />
 
+          {receivedCount > 0 && (
+            <motion.button
+              onClick={() => navigate("/archive", { state: { filter: "received" } })}
+              className="mb-6 w-full bg-gradient-to-r from-retro-yellow-from/50 to-retro-pink-from/40 border-[2.5px] border-black/50 rounded-xl px-5 py-3.5 flex items-center justify-center gap-2.5 hover:border-black/70 transition-all"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+            >
+              <Mail className="w-4 h-4 text-black/70" strokeWidth={2.5} />
+              <span className="text-sm font-bold text-black/70">
+                You have {receivedCount} received capsule{receivedCount !== 1 ? "s" : ""}
+              </span>
+              <ArrowRight className="w-4 h-4 text-black/50" strokeWidth={2.5} />
+            </motion.button>
+          )}
+
           <div className="mb-8">
             <RetroButton onClick={() => navigate("/compose")}>
               Write a Capsule →
@@ -140,7 +171,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-2.5 flex-wrap">
             <StickerLabel
               icon={<Lock strokeWidth={2.5} />}
-              label="Private & Local"
+              label="Private & Secure"
               bgClass="bg-[#FFE8F5]/50"
             />
             <StickerLabel

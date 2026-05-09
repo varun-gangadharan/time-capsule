@@ -467,7 +467,7 @@ export default function SharedCapsulePage() {
               <span className="text-black/20">·</span>
               <span className="flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5" strokeWidth={2.5} />
-                Opened {formattedOpenDate}
+                Opened {new Date(capsule.updatedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
               </span>
             </div>
 

@@ -35,6 +35,7 @@ export default function RetroButton({
   variant = "primary",
   className = "",
   children,
+  disabled,
   ...props
 }: {
   variant?: Variant;
@@ -42,10 +43,13 @@ export default function RetroButton({
   const sizeClass =
     variant === "primary" ? "px-10 py-4 text-base" : "px-6 py-3";
 
+  const motion_props = disabled ? {} : variantMotion[variant];
+
   return (
     <motion.button
-      className={`whitespace-nowrap ${variantClasses[variant]} ${sizeClass} ${className}`}
-      {...variantMotion[variant]}
+      className={`whitespace-nowrap ${variantClasses[variant]} ${sizeClass} ${disabled ? "opacity-50 cursor-not-allowed" : ""} ${className}`}
+      {...motion_props}
+      disabled={disabled}
       {...props}
     >
       {children}

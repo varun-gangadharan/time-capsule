@@ -222,9 +222,11 @@ export default function CapsuleCard({
           <span>
             {!openDate
               ? "No open date"
-              : isReady || isOpened
-                ? `Opened ${openDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
-                : `Opens ${openDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
+              : isOpened
+                ? `Opened ${new Date(capsule.updatedAt || capsule.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                : isReady
+                  ? `Ready to open`
+                  : `Opens ${openDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
           </span>
         </div>
 

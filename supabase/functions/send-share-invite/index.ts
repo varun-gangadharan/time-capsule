@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const RESEND_API_URL = "https://api.resend.com/emails";
+const DEFAULT_APP_URL = "https://varcapsule.xyz";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -50,7 +51,7 @@ Deno.serve(async (req) => {
     return Response.json({ error: "Capsule has not been shared with an email" }, { status: 400, headers: corsHeaders });
   }
 
-  const appUrl = Deno.env.get("APP_URL") ?? new URL(req.url).origin;
+  const appUrl = getAppUrl();
   const sharedLink = `${appUrl}/shared/${capsule.share_token}`;
   const openDate = capsule.open_date
     ? new Date(`${capsule.open_date}T00:00:00`).toLocaleDateString("en-US", {
@@ -92,6 +93,10 @@ Deno.serve(async (req) => {
 
   return Response.json({ sent: true }, { headers: corsHeaders });
 });
+
+function getAppUrl(): string {
+  return (Deno.env.get("APP_URL") ?? DEFAULT_APP_URL).replace(/\/+$/, "");
+}
 
 function buildShareInviteHtml({
   title,

@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const RESEND_API_URL = "https://api.resend.com/emails";
+const DEFAULT_APP_URL = "https://varcapsule.xyz";
 
 Deno.serve(async (req) => {
   // Auth: verify via a shared secret stored in CRON_SECRET env var.
@@ -74,7 +75,7 @@ Deno.serve(async (req) => {
       : "a while ago";
 
     // Send via Resend
-    const appUrl = Deno.env.get("APP_URL") ?? supabaseUrl.replace(".supabase.co", ".vercel.app");
+    const appUrl = getAppUrl();
     const capsuleLink = `${appUrl}/capsules/${notif.capsule_id}`;
 
     try {
@@ -111,6 +112,10 @@ Deno.serve(async (req) => {
 
   return Response.json({ processed: notifications.length, sent, failed });
 });
+
+function getAppUrl(): string {
+  return (Deno.env.get("APP_URL") ?? DEFAULT_APP_URL).replace(/\/+$/, "");
+}
 
 // --- Helpers ---
 
