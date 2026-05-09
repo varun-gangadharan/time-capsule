@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Sparkles, ArrowLeft, Calendar, Clock, Lock, Tag, Loader2, Mail, X, Send } from "lucide-react";
+import { Sparkles, ArrowLeft, Calendar, Clock, Lock, Tag, Loader2, Mail, X, Send, AlertTriangle } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import { useEffect, useState } from "react";
 import { getCapsule, openCapsule, openSharedCapsule, shareCapsuleWithEmail, revokeShare, todayString } from "../../lib/capsules";
@@ -22,6 +22,7 @@ export default function CapsuleDetailPage() {
   const [shareEmail, setShareEmail] = useState("");
   const [shareMessage, setShareMessage] = useState("");
   const [openError, setOpenError] = useState("");
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -38,7 +39,9 @@ export default function CapsuleDetailPage() {
           navigate(`/compose/${c.id}`, { replace: true });
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) setFetchError(true);
+      })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
@@ -58,6 +61,34 @@ export default function CapsuleDetailPage() {
             >
               <Loader2 className="w-8 h-8 text-black/30" strokeWidth={2.5} />
             </motion.div>
+          </div>
+        </RetroWindow>
+      </RetroPageBackground>
+    );
+  }
+
+  // Fetch error
+  if (fetchError) {
+    return (
+      <RetroPageBackground sparkleCount={4}>
+        <RetroWindow title="ERROR" maxWidth="max-w-2xl">
+          <div className="px-6 py-10 sm:px-14 sm:py-16 text-center">
+            <div className="mx-auto mb-5 w-16 h-16 bg-[#FFF0F0] border-[3px] border-[#d4183d]/40 rounded-full flex items-center justify-center">
+              <AlertTriangle className="w-7 h-7 text-[#d4183d]" strokeWidth={2.5} />
+            </div>
+            <SectionHeader
+              title="SOMETHING WENT WRONG"
+              subtitle="Couldn't load this capsule. Check your connection and try again."
+              size="md"
+            />
+            <div className="flex items-center justify-center gap-3">
+              <RetroButton variant="secondary" onClick={() => navigate("/archive")}>
+                Back to Archive
+              </RetroButton>
+              <RetroButton onClick={() => window.location.reload()}>
+                Retry
+              </RetroButton>
+            </div>
           </div>
         </RetroWindow>
       </RetroPageBackground>
@@ -86,8 +117,13 @@ export default function CapsuleDetailPage() {
 
   async function handleShareWithEmail() {
     if (!capsule) return;
-    if (!shareEmail.trim()) {
+    const email = shareEmail.trim();
+    if (!email) {
       setShareMessage("Enter the recipient's email first.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setShareMessage("That doesn't look like a valid email address.");
       return;
     }
     setSharingLoading(true);

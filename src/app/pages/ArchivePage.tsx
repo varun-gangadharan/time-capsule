@@ -86,7 +86,7 @@ export default function ArchivePage() {
   useEffect(() => {
     getAllCapsules()
       .then(setAllCapsules)
-      .catch(() => {})
+      .catch(() => setErrorMsg("Couldn't load your capsules. Check your connection and refresh."))
       .finally(() => setLoading(false));
   }, []);
 

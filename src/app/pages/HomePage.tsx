@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Mail, Lock, Sparkles, Archive, Settings, ArrowRight } from "lucide-react";
+import { Mail, Lock, Sparkles, Archive, Settings, ArrowRight, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router";
 import RetroPageBackground from "../components/retro/RetroPageBackground";
 import RetroWindow from "../components/retro/RetroWindow";
@@ -14,14 +14,16 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [receivedCount, setReceivedCount] = useState(0);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     if (!user) return;
+    setFetchError(false);
     getAllCapsules()
       .then((capsules) => {
         setReceivedCount(capsules.filter((c) => c.userId !== user.id && c.status !== "opened").length);
       })
-      .catch(() => {});
+      .catch(() => setFetchError(true));
   }, [user]);
 
   return (
@@ -143,6 +145,17 @@ export default function HomePage() {
             subtitle="Write something to your future self. Seal it away. Open it when the time comes."
             size="lg"
           />
+
+          {fetchError && (
+            <motion.div
+              className="mb-6 flex items-center justify-center gap-2 rounded-lg border-[2px] border-[#d4183d]/40 bg-[#FFF0F0] px-4 py-3 text-xs font-bold text-[#d4183d]"
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <AlertTriangle className="w-4 h-4 shrink-0" strokeWidth={2.5} />
+              Couldn't load your capsules. Check your connection and refresh.
+            </motion.div>
+          )}
 
           {receivedCount > 0 && (
             <motion.button

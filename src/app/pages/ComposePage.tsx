@@ -91,17 +91,27 @@ export default function ComposePage() {
     return () => { cancelled = true; };
   }, [editId, navigate]);
 
+  const TITLE_MAX = 100;
+  const MESSAGE_MAX = 50_000;
+
   function validate(): FormErrors {
     const e: FormErrors = {};
     if (!title.trim()) e.title = "Your capsule needs a name — even a short one";
+    else if (title.trim().length > TITLE_MAX) e.title = `Title is too long (max ${TITLE_MAX} characters)`;
     if (!message.trim()) e.message = "Say something to future you, even just a few words";
+    else if (message.length > MESSAGE_MAX) e.message = `Message is too long (max ${MESSAGE_MAX.toLocaleString()} characters)`;
     if (!openDate) {
       e.openDate = "Choose when this capsule should unlock";
     } else if (openDate < todayString()) {
       e.openDate = "That date has already passed — pick a day still ahead";
     }
-    if (privacyMode === "shared" && !recipientEmail.trim()) {
-      e.recipientEmail = "Enter the recipient's email";
+    if (privacyMode === "shared") {
+      const email = recipientEmail.trim();
+      if (!email) {
+        e.recipientEmail = "Enter the recipient's email";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        e.recipientEmail = "That doesn't look like a valid email address";
+      }
     }
     return e;
   }
@@ -308,17 +318,18 @@ export default function ComposePage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left: Form inputs */}
             <div className="lg:col-span-2 space-y-6">
-              <FormField label="Title" error={errors.title} hint="Optional for drafts">
+              <FormField label="Title" error={errors.title} hint={`Optional for drafts · ${title.length}/${TITLE_MAX}`}>
                 <input
                   type="text"
                   placeholder="A name for this moment"
                   className="retro-input"
+                  maxLength={TITLE_MAX}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                 />
               </FormField>
 
-              <FormField label="Your Message" error={errors.message}>
+              <FormField label="Your Message" error={errors.message} hint={message.length > MESSAGE_MAX * 0.9 ? `${message.length.toLocaleString()}/${MESSAGE_MAX.toLocaleString()}` : undefined}>
                 <textarea
                   rows={7}
                   placeholder="Dear future me..."
