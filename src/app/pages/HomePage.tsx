@@ -19,7 +19,7 @@ export default function HomePage() {
     if (!user) return;
     getAllCapsules()
       .then((capsules) => {
-        setReceivedCount(capsules.filter((c) => c.userId !== user.id).length);
+        setReceivedCount(capsules.filter((c) => c.userId !== user.id && c.status !== "opened").length);
       })
       .catch(() => {});
   }, [user]);
